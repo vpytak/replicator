@@ -1,5 +1,8 @@
 package com.booking.replication;
 
+import com.booking.replication.configuration.MetricsConfiguration;
+import com.booking.replication.metrics.GraphiteReporter;
+import com.booking.replication.metrics.MetricsReporter;
 import com.booking.replication.util.Duration;
 import com.booking.replication.util.StartupParameters;
 import com.google.common.base.Joiner;
@@ -11,6 +14,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
+import javax.naming.ConfigurationException;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashMap;
@@ -186,29 +190,34 @@ public class Configuration {
         return validationConfig;
     }
 
-    @JsonDeserialize
-    public MetricsConfig metrics = new MetricsConfig();
+    @JsonDeserialize()
+    public Metrics metrics = new Metrics();
+    private MetricsConfiguration metricsConfiguration = null;
 
-    public static class MetricsConfig {
-        public Duration     frequency;
+    public static class Metrics {
 
-        @JsonDeserialize
-        public HashMap<String, ReporterConfig> reporters = new HashMap<>();
-
-        public static class ReporterConfig {
+        public static class Reporter {
             public String       type;
             public String       namespace;
             public String       url;
+            public MetricsReporter implementation;
         }
+
+        public Duration     frequency;
+
+        @JsonDeserialize
+        public HashMap<String, Reporter> reporters = new HashMap<>();
+
     }
 
-    public Duration getReportingFrequency() {
-        return metrics.frequency;
+    public MetricsConfiguration getMetricsConfiguration() throws ConfigurationException {
+        if (metrics.frequency == null) metrics.frequency = Duration.parse("10 seconds");
+        if (metricsConfiguration == null) {
+            metricsConfiguration = new MetricsConfiguration(metrics.frequency, metrics.reporters);
+        }
+        return metricsConfiguration;
     }
 
-    public HashMap<String, MetricsConfig.ReporterConfig> getMetricReporters() {
-        return metrics.reporters;
-    }
 
     /**
      * Get metrics reporter configuration.
@@ -216,7 +225,7 @@ public class Configuration {
      * @param type  The type of reporter
      * @return      Configuration object
      */
-    public MetricsConfig.ReporterConfig getReporterConfig(String type) {
+    public Metrics.Reporter getReporterConfig(String type) {
         if (! metrics.reporters.containsKey(type)) {
             return null;
         }

@@ -76,7 +76,7 @@ public class Main {
                     @Override
                     public void run() {
                         try {
-                            Metrics.startReporters(configuration);
+                            Metrics.startReporters(configuration.getMetricsConfiguration());
                             new Replicator(configuration, healthTracker, Metrics.registry.counter(name("events", "applierEventsObserved"))).start();
                         } catch (Exception e) {
                             e.printStackTrace();

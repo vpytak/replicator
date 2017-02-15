@@ -1,7 +1,6 @@
 package com.booking.replication.metrics;
 
 import com.booking.replication.Configuration;
-import com.booking.replication.Metrics;
 import com.booking.replication.util.Duration;
 
 import com.codahale.metrics.ScheduledReporter;
@@ -14,11 +13,8 @@ import java.util.concurrent.TimeUnit;
  * This class provides a Graphite Reporter.
  */
 public class GraphiteReporter extends MetricsReporter {
-
-    private static final String type = "graphite";
-
     private ScheduledReporter reporter;
-    private Duration frequency = Duration.parse("10 seconds");
+    private Duration frequency;
 
     public ScheduledReporter getReporter() {
         return reporter;
@@ -31,12 +27,10 @@ public class GraphiteReporter extends MetricsReporter {
     /**
      * Start a metrics graphite reporter.
      */
-    public GraphiteReporter(Configuration conf) {
-        Configuration.MetricsConfig.ReporterConfig metricConf = conf.getReporterConfig(GraphiteReporter.type);
+    public GraphiteReporter(Duration frequency, Configuration.Metrics.Reporter reporterConfiguration) {
+        this.frequency = frequency;
 
-        frequency = conf.getReportingFrequency();
-
-        String[] urlSplit = metricConf.url.split(":");
+        String[] urlSplit = reporterConfiguration.url.split(":");
         String hostName = urlSplit[0];
         int port = 3002;
         if (urlSplit.length > 1) {
@@ -44,8 +38,8 @@ public class GraphiteReporter extends MetricsReporter {
         }
 
         reporter = com.codahale.metrics.graphite.GraphiteReporter
-                .forRegistry(Metrics.registry)
-                .prefixedWith(metricConf.namespace)
+                .forRegistry(com.booking.replication.Metrics.registry)
+                .prefixedWith(reporterConfiguration.namespace)
                 .convertRatesTo(TimeUnit.SECONDS)
                 .convertDurationsTo(TimeUnit.SECONDS)
                 .build(new Graphite(new InetSocketAddress(hostName, port)));
