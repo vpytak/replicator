@@ -1,6 +1,7 @@
 package com.booking.replication.metrics;
 
 import com.booking.replication.Configuration;
+import com.booking.replication.configuration.MetricsReporterConfiguration;
 import com.booking.replication.util.Duration;
 
 import com.codahale.metrics.ScheduledReporter;
@@ -13,21 +14,11 @@ import java.util.concurrent.TimeUnit;
  * This class provides a Graphite Reporter.
  */
 public class GraphiteReporter extends MetricsReporter {
-    private ScheduledReporter reporter;
-    private Duration frequency;
-
-    public ScheduledReporter getReporter() {
-        return reporter;
-    }
-
-    public Duration getFrequency() {
-        return frequency;
-    }
 
     /**
      * Start a metrics graphite reporter.
      */
-    public GraphiteReporter(Duration frequency, Configuration.Metrics.Reporter reporterConfiguration) {
+    public GraphiteReporter(Duration frequency, MetricsReporterConfiguration reporterConfiguration) {
         this.frequency = frequency;
 
         String[] urlSplit = reporterConfiguration.url.split(":");
@@ -44,4 +35,7 @@ public class GraphiteReporter extends MetricsReporter {
                 .convertDurationsTo(TimeUnit.SECONDS)
                 .build(new Graphite(new InetSocketAddress(hostName, port)));
     }
+
+
+
 }

@@ -4,6 +4,7 @@ import com.booking.replication.Configuration;
 import com.booking.replication.checkpoints.LastCommittedPositionCheckpoint;
 import com.booking.replication.checkpoints.SafeCheckPoint;
 
+import com.booking.replication.configuration.FileConfiguration;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -21,14 +22,14 @@ import java.nio.file.Paths;
 public class FileCoordinator implements CoordinatorInterface {
     private static final Logger LOGGER = LoggerFactory.getLogger(FileCoordinator.class);
 
-    private final Configuration configuration;
+    private final FileConfiguration fileConfiguration;
 
     private SafeCheckPoint checkPoint;
     private final Path checkPointPath;
 
-    public FileCoordinator(Configuration configuration) {
-        this.configuration = configuration;
-        checkPointPath  = Paths.get(configuration.getMetadataFile());
+    public FileCoordinator(FileConfiguration fileConfiguration) {
+        this.fileConfiguration = fileConfiguration;
+        checkPointPath  = Paths.get(fileConfiguration.getPath());
     }
 
     @Override

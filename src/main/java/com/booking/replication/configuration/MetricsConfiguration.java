@@ -14,13 +14,13 @@ public class MetricsConfiguration {
 
 
     public Duration frequency;
-    public HashMap<String, Configuration.Metrics.Reporter> reporters;
+    public HashMap<String, MetricsReporterConfiguration> reporters;
 
-    public MetricsConfiguration(Duration frequency, HashMap<String, Configuration.Metrics.Reporter> reporters) throws ConfigurationException {
+    public MetricsConfiguration(Duration frequency, HashMap<String, MetricsReporterConfiguration> reporters) throws ConfigurationException {
         this.frequency = frequency;
         this.reporters = reporters;
         for (String reporterName : reporters.keySet()) {
-            Configuration.Metrics.Reporter reporter = reporters.get(reporterName);
+            MetricsReporterConfiguration reporter = reporters.get(reporterName);
             switch (reporterName) {
                 case "graphite":
                     reporter.implementation = new GraphiteReporter(frequency, reporter);
@@ -38,7 +38,7 @@ public class MetricsConfiguration {
         return frequency;
     }
 
-    public HashMap<String, Configuration.Metrics.Reporter> getReporters() {
+    public HashMap<String, MetricsReporterConfiguration> getReporters() {
         return reporters;
     }
 
@@ -48,7 +48,7 @@ public class MetricsConfiguration {
      * @param type The type of reporter
      * @return Configuration object
      */
-    public Configuration.Metrics.Reporter getReporter(String type) {
+    public MetricsReporterConfiguration getReporter(String type) {
         return reporters.getOrDefault(type, null);
     }
 

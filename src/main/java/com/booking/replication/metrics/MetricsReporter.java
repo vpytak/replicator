@@ -8,10 +8,16 @@ import com.codahale.metrics.ScheduledReporter;
  * Created by rmirica on 06/06/16.
  */
 public abstract class MetricsReporter {
+    Duration frequency;
+    ScheduledReporter reporter;
 
-    public abstract ScheduledReporter getReporter();
+    private Duration getFrequency() {
+        return frequency;
+    }
 
-    public abstract Duration getFrequency();
+    private ScheduledReporter getReporter() {
+        return reporter;
+    }
 
     /**
      * Start the reporter.

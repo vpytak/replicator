@@ -1,6 +1,7 @@
 package com.booking.replication.validation;
 
 import com.booking.replication.Configuration;
+import com.booking.replication.configuration.ValidationConfiguration;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -66,7 +67,7 @@ public class ValidationService {
 
     public static ValidationService getInstance(Configuration configuration){
 
-        Configuration.ValidationConfiguration validationConfig = configuration.getValidationConfiguration();
+        ValidationConfiguration validationConfig = configuration.getValidationConfiguration();
 
         if (validationConfig == null) return null;
 

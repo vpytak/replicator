@@ -32,7 +32,7 @@ public class Metrics {
         registry.register(name("jvm", "fd"), new FileDescriptorRatioGauge());
         registry.register(name("jvm", "memory"), new MemoryUsageGaugeSet());
 
-        metricsConfiguration.reporters.values().forEach( (v) -> v.implementation.start() );
+        metricsConfiguration.getReporters().values().forEach( (v) -> v.implementation.start() );
     }
 
 }

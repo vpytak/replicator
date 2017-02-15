@@ -4,6 +4,7 @@ import com.booking.replication.Configuration;
 import com.booking.replication.checkpoints.LastCommittedPositionCheckpoint;
 import com.booking.replication.checkpoints.SafeCheckPoint;
 
+import com.booking.replication.configuration.ZookeeperConfiguration;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.curator.RetryPolicy;
@@ -26,12 +27,10 @@ import java.io.IOException;
 public class ZookeeperCoordinator implements CoordinatorInterface {
     private static final Logger LOGGER = LoggerFactory.getLogger(ZookeeperCoordinator.class);
 
-    private final Configuration configuration;
+    private final ZookeeperConfiguration zookeeperConfiguration;
 
     private volatile boolean isLeader = false;
     private volatile boolean isRunning = true;
-
-    private SafeCheckPoint safeCheckPoint;
 
     private CuratorFramework client;
 
@@ -73,26 +72,26 @@ public class ZookeeperCoordinator implements CoordinatorInterface {
     /**
      * Zookeeper-based Coordinator implementation.
      *
-     * @param configuration Replicator configuration
+     * @param zookeeperConfiguration Replicator configuration
      */
-    public ZookeeperCoordinator(Configuration configuration)  {
-        this.configuration = configuration;
-        this.checkPointPath = String.format("%s/checkpoint", configuration.getZookeeperPath());
+    public ZookeeperCoordinator(ZookeeperConfiguration zookeeperConfiguration)  {
+        this.zookeeperConfiguration = zookeeperConfiguration;
+        this.checkPointPath = String.format("%s/checkpoint", zookeeperConfiguration.getPath());
 
         RetryPolicy retryPolicy = new ExponentialBackoffRetry(1000, 3);
 
-        String cluster = configuration.getZookeeperQuorum();
+        String cluster = zookeeperConfiguration.getQuorumString();
 
         client = CuratorFrameworkFactory.newClient(cluster, retryPolicy);
         client.start();
 
         try {
-            client.createContainers(configuration.getZookeeperPath());
+            client.createContainers(zookeeperConfiguration.getPath());
         } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException(String.format(
                 "Failed to create Zookeeper Coordinator container at path: %s (Because of: %s)",
-                configuration.getZookeeperPath(),
+                    zookeeperConfiguration.getPath(),
                 e.getMessage()
             ));
         }
@@ -108,7 +107,7 @@ public class ZookeeperCoordinator implements CoordinatorInterface {
 
         CoordinatorLeaderElectionListener le = new CoordinatorLeaderElectionListener(
                 client,
-                String.format("%s/master", configuration.getZookeeperPath()),
+                String.format("%s/master", zookeeperConfiguration.getPath()),
                 callback);
 
         le.start();

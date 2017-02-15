@@ -254,7 +254,7 @@ public class Replicator {
         } else if (configuration.getApplierType().toLowerCase().equals("kafka")) {
             mainProgressCounter = Metrics.registry.meter(name("Kafka", "producerToBroker"));
             mainProgressCounterDescription = "# of messages pushed to the Kafka broker";
-            applier = new EventCountingApplier(new KafkaApplier(configuration, (Meter)mainProgressCounter), interestingEventsObservedCounter);
+            applier = new EventCountingApplier(new KafkaApplier(configuration.getKafkaConfiguration(), (Meter)mainProgressCounter), interestingEventsObservedCounter);
         } else {
             throw new RuntimeException(String.format("Unknown applier: %s", configuration.getApplierType()));
         }

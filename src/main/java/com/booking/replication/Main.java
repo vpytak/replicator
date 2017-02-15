@@ -1,5 +1,7 @@
 package com.booking.replication;
 
+import com.booking.replication.configuration.MetadataStoreConfiguration;
+import com.booking.replication.coordinator.CoordinatorFactory;
 import com.booking.replication.coordinator.CoordinatorInterface;
 import com.booking.replication.coordinator.FileCoordinator;
 import com.booking.replication.coordinator.ZookeeperCoordinator;
@@ -45,27 +47,14 @@ public class Main {
             }
 
             configuration.loadStartupParameters(startupParameters);
-            configuration.validate();
 
             try {
                 System.out.println("loaded configuration: \n" + configuration.toString());
             } catch (Exception e) {
                 e.printStackTrace();
             }
-            CoordinatorInterface coordinator;
-            switch (configuration.getMetadataStoreType()) {
-                case Configuration.METADATASTORE_ZOOKEEPER:
-                    coordinator = new ZookeeperCoordinator(configuration);
-                    break;
-                case Configuration.METADATASTORE_FILE:
-                    coordinator = new FileCoordinator(configuration);
-                    break;
-                default:
-                    throw new RuntimeException(String.format(
-                            "Metadata store type not implemented: %s",
-                            configuration.getMetadataStoreType()));
-            }
 
+            CoordinatorInterface coordinator = CoordinatorFactory.getCoordinator(configuration.getMetadataStoreConfiguration());
             Coordinator.setImplementation(coordinator);
 
             ReplicatorHealthTrackerProxy healthTracker = new ReplicatorHealthTrackerProxy();

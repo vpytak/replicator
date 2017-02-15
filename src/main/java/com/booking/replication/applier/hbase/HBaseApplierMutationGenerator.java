@@ -54,7 +54,7 @@ public class HBaseApplierMutationGenerator {
 
         public String getTargetRowUri() {
 
-            if (configuration.validationConfig == null) return null;
+            if (configuration.getValidationConfiguration() == null) return null;
 
             // TODO: make URI generation in a right way
 
@@ -317,7 +317,7 @@ public class HBaseApplierMutationGenerator {
 
     private String getRowUri(AugmentedRow row){
 
-        if (configuration.validationConfig == null) return null;
+        if (configuration.getValidationConfiguration() == null) return null;
 
         // TODO: generate URI in a better way
 
@@ -343,7 +343,7 @@ public class HBaseApplierMutationGenerator {
                 } )
                 .collect(Collectors.joining("&"));
 
-        return String.format("mysql://%s/%s?%s", configuration.validationConfig.getSourceDomain(), table, keys  );
+        return String.format("mysql://%s/%s?%s", configuration.getValidationConfiguration().getSourceDomain(), table, keys  );
     }
 
     private static String getHBaseRowKey(AugmentedRow row) {

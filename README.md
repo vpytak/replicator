@@ -53,7 +53,7 @@ replication_schema:
     name:      'replicated_schema_name'
     username:  'user'
     password:  'pass'
-    host_pool: ['localhost']
+    hostPool: ['localhost']
 
 metadata_store:
     username: 'user'

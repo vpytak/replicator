@@ -1,8 +1,6 @@
 package com.booking.replication;
 
-import com.booking.replication.configuration.MetricsConfiguration;
-import com.booking.replication.metrics.GraphiteReporter;
-import com.booking.replication.metrics.MetricsReporter;
+import com.booking.replication.configuration.*;
 import com.booking.replication.util.Duration;
 import com.booking.replication.util.StartupParameters;
 import com.google.common.base.Joiner;
@@ -28,11 +26,6 @@ import java.util.concurrent.TimeUnit;
  */
 public class Configuration {
 
-    /**
-     * Empty constructor.
-     */
-    public Configuration() {}
-
     private boolean initialSnapshotMode;
     private boolean dryRunMode;
     private long    startingBinlogPosition;
@@ -40,16 +33,30 @@ public class Configuration {
     private String  endingBinlogFileName;
     private String  applierType;
 
-    @JsonDeserialize
-    private ReplicationSchema replication_schema;
-
     private static class ReplicationSchema implements Serializable {
-        public String       name;
-        public String       username;
-        public String       password;
-        public List<String> host_pool;
-        public int          port        = 3306;
+        private String name;
+        private String username;
+        private String password;
+        private List<String> host_pool;
+        private int port = 3306;
     }
+
+    @JsonDeserialize
+    private ReplicationSchema replicationSchema;
+    private ReplicationSchemaConfiguration replicationSchemaConfiguration = null;
+
+    public ReplicationSchemaConfiguration getReplicationSchemaConfiguration() throws ConfigurationException {
+        if (replicationSchemaConfiguration == null) {
+            replicationSchemaConfiguration = new ReplicationSchemaConfiguration(replicationSchema.name,
+                    replicationSchema.username, replicationSchema.password, replicationSchema.host_pool,
+                    replicationSchema.port);
+        }
+        return replicationSchemaConfiguration;
+    }
+
+
+
+
 
 
     @JsonDeserialize
@@ -59,20 +66,20 @@ public class Configuration {
     private static class MySQLFailover {
 
         @JsonDeserialize
-        public PseudoGTIDConfig pgtid;
+        PseudoGTIDConfig pgtid;
 
         private static class PseudoGTIDConfig implements Serializable {
-            public String p_gtid_pattern;
-            public String p_gtid_prefix;
+            String p_gtid_pattern;
+            String p_gtid_prefix;
         }
 
         @JsonDeserialize
-        public Orchestrator orchestrator;
+        Orchestrator orchestrator;
 
         private static class Orchestrator {
-            public String username;
-            public String password;
-            public String url;
+            String username;
+            String password;
+            String url;
         }
     }
 
@@ -82,72 +89,72 @@ public class Configuration {
 
     private static class HBaseConfiguration {
 
-        public String       namespace;
-        public List<String> zookeeper_quorum;
-        public boolean      writeRecentChangesToDeltaTables;
+        String       namespace;
+        List<String> zookeeper_quorum;
+        boolean      writeRecentChangesToDeltaTables;
 
         @JsonDeserialize
-        public HiveImports     hive_imports = new HiveImports();
+        HiveImports     hive_imports = new HiveImports();
 
         private static class HiveImports {
             public List<String> tables = Collections.emptyList();
         }
     }
 
+
+
+
+
+
+
+
     @JsonDeserialize
-    private MetadataStore metadata_store;
+    private MetadataStore metadataStore;
+    private MetadataStoreConfiguration metadataStoreConfiguration = null;
 
     private static class MetadataStore {
-        public String       username;
-        public String       password;
+        String       username;
+        String       password;
         public String       host;
-        public String       database;
-
+        String       database;
         @JsonDeserialize
-        public ZookeeperConfig zookeeper;
-
-        private static class ZookeeperConfig {
-            public List<String> quorum;
-            public String       path = "/";
-        }
-
+        ZookeeperConfiguration zookeeper;
         @JsonDeserialize
-        public FileConfig file;
-
-        private static class FileConfig {
-            public String       path;
-        }
+        public FileConfiguration file;
     }
-
-    public static final int METADATASTORE_ZOOKEEPER = 1;
-    public static final int METADATASTORE_FILE      = 2;
 
     /**
      * Metadata store type.
      *
      * @return Zookeeper/File
      */
-    public int getMetadataStoreType() {
-        if (metadata_store.zookeeper != null) {
-            return METADATASTORE_ZOOKEEPER;
-        } else if (metadata_store.file != null) {
-            return METADATASTORE_FILE;
-        } else {
-            throw new RuntimeException("Metadata store not configured, please define a zookeeper or file metadata store.");
+    public MetadataStoreConfiguration getMetadataStoreConfiguration() throws ConfigurationException {
+        if (metadataStoreConfiguration == null) {
+            metadataStoreConfiguration = new MetadataStoreConfiguration(metadataStore.username, metadataStore.password,
+                    metadataStore.host, metadataStore.database, metadataStore.zookeeper, metadataStore.file);
         }
+        return metadataStoreConfiguration;
     }
 
     @JsonDeserialize
-    private KafkaConfiguration kafka = new KafkaConfiguration();
+    private Kafka kafka;
+    private KafkaConfiguration kafkaConfiguration;
 
-    private static class KafkaConfiguration {
-        public String broker;
-        public List<String> tables;
-        public List<String> excludetables;
-        public String topic;
+    private static class Kafka {
+        String broker;
+        List<String> tables;
+        List<String> excludetables;
+        String topic;
     }
 
-    public static class ValidationConfiguration {
+    public KafkaConfiguration getKafkaConfiguration(){
+        if (kafkaConfiguration == null) {
+            kafkaConfiguration = new KafkaConfiguration(isDryRunMode(), kafka.broker, kafka.tables, kafka.excludetables, kafka.topic);
+        }
+        return kafkaConfiguration;
+    }
+
+    private static class Validation {
         private String broker;
         private String topic;
         private String tag = "general";
@@ -155,62 +162,34 @@ public class Configuration {
         private String sourceDomain;
         @JsonProperty("target_domain")
         private String targetDomain;
-        private long throttling = TimeUnit.SECONDS.toMillis(5);
-
-        public String getBroker() {
-            return broker;
-        }
-
-        public String getTopic() {
-            return topic;
-        }
-
-        public String getTag() {
-            return tag;
-        }
-
-        public String getSourceDomain() {
-            return sourceDomain;
-        }
-
-        public String getTargetDomain() {
-            return targetDomain;
-        }
-
-        public long getThrottling() {
-            return throttling;
-        }
+        private long throttling = TimeUnit.SECONDS.toMillis(5);;
     }
 
     @JsonDeserialize
     @JsonProperty("validation")
-    public ValidationConfiguration validationConfig;
+    private Validation validation;
+    private ValidationConfiguration validationConfiguration = null;
 
     public ValidationConfiguration getValidationConfiguration(){
-        return validationConfig;
+        if (validationConfiguration == null) {
+            validationConfiguration = new ValidationConfiguration(
+                    validation.broker, validation.topic, validation.tag, validation.sourceDomain,
+                    validation.targetDomain, validation.throttling);
+        }
+        return validationConfiguration;
+    }
+
+    public static class Metrics {
+        Duration     frequency;
+        @JsonDeserialize
+        HashMap<String, MetricsReporterConfiguration> reporters = new HashMap<>();
     }
 
     @JsonDeserialize()
     public Metrics metrics = new Metrics();
     private MetricsConfiguration metricsConfiguration = null;
 
-    public static class Metrics {
-
-        public static class Reporter {
-            public String       type;
-            public String       namespace;
-            public String       url;
-            public MetricsReporter implementation;
-        }
-
-        public Duration     frequency;
-
-        @JsonDeserialize
-        public HashMap<String, Reporter> reporters = new HashMap<>();
-
-    }
-
-    public MetricsConfiguration getMetricsConfiguration() throws ConfigurationException {
+    MetricsConfiguration getMetricsConfiguration() throws ConfigurationException {
         if (metrics.frequency == null) metrics.frequency = Duration.parse("10 seconds");
         if (metricsConfiguration == null) {
             metricsConfiguration = new MetricsConfiguration(metrics.frequency, metrics.reporters);
@@ -219,19 +198,13 @@ public class Configuration {
     }
 
 
-    /**
-     * Get metrics reporter configuration.
-     *
-     * @param type  The type of reporter
-     * @return      Configuration object
-     */
-    public Metrics.Reporter getReporterConfig(String type) {
-        if (! metrics.reporters.containsKey(type)) {
-            return null;
-        }
 
-        return metrics.reporters.get(type);
-    }
+
+
+
+
+
+
 
     /**
      * Apply command line parameters to the configuration object.
@@ -272,26 +245,6 @@ public class Configuration {
      * Validate configuration.
      */
     public void validate() {
-
-        if (replication_schema.name == null) {
-            throw new RuntimeException("Replication schema name cannot be null.");
-        }
-        if (replication_schema.host_pool == null) {
-            throw new RuntimeException("Replication schema host_pool cannot be null.");
-        }
-        if (replication_schema.username == null) {
-            throw new RuntimeException("Replication schema user name cannot be null.");
-        }
-
-        if (metadata_store.zookeeper == null && metadata_store.file == null) {
-            throw new RuntimeException("No metadata store specified, please provide "
-                    + "either zookeeper or file-based metadata storage.");
-        } else if (metadata_store.zookeeper != null && metadata_store.zookeeper.quorum == null) {
-            throw new RuntimeException("Metadata store set as zookeeper but no zookeeper quorum is specified");
-        } else if (metadata_store.file != null && metadata_store.file.path == null) {
-            throw new RuntimeException("Metadata store set as file but no path is specified");
-        }
-
         if (applierType.equals("hbase")) {
             if (hbaseConfiguration.namespace == null) {
                 throw new RuntimeException("HBase namespace cannot be null.");
@@ -316,24 +269,22 @@ public class Configuration {
     // =========================================================================
     // Replication schema config getters
     public int getReplicantPort() {
-        return replication_schema.port;
+        return replicationSchema.port;
     }
 
     public List<String> getReplicantDBHostPool() {
-        return this.replication_schema.host_pool;
+        return this.replicationSchema.host_pool;
     }
 
     public String getReplicantSchemaName() {
-        return replication_schema.name;
+        return replicationSchema.name;
     }
 
-    public String getReplicantDBUserName() {
-        return replication_schema.username;
-    }
+    public String getReplicantDBUserName() { return replicationSchema.username; }
 
     @JsonIgnore
     public String getReplicantDBPassword() {
-        return replication_schema.password;
+        return replicationSchema.password;
     }
 
     // =========================================================================
@@ -379,24 +330,24 @@ public class Configuration {
     // ========================================================================
     // Metadata store config getters
     public String getActiveSchemaDSN() {
-        return String.format("jdbc:mysql://%s/%s", metadata_store.host, metadata_store.database);
+        return String.format("jdbc:mysql://%s/%s", metadataStore.host, metadataStore.database);
     }
 
     public String getActiveSchemaHost() {
-        return metadata_store.host;
+        return metadataStore.host;
     }
 
     public String getActiveSchemaUserName() {
-        return metadata_store.username;
+        return metadataStore.username;
     }
 
     @JsonIgnore
     public String getActiveSchemaPassword() {
-        return metadata_store.password;
+        return metadataStore.password;
     }
 
     public String getActiveSchemaDB() {
-        return metadata_store.database;
+        return metadataStore.database;
     }
 
     public String getpGTIDPattern() {
@@ -406,35 +357,6 @@ public class Configuration {
 
     public String getpGTIDPrefix() {
         return mySQLFailover.pgtid.p_gtid_prefix;
-    }
-    /**
-     * Get metadata store zookeeper quorum.
-     */
-    public String getZookeeperQuorum() {
-        if (getMetadataStoreType() != Configuration.METADATASTORE_ZOOKEEPER) {
-            return "[]";
-        }
-        return Joiner.on(",").join(metadata_store.zookeeper.quorum);
-    }
-
-    /**
-     * Get metadata store zookeeper path.
-     */
-    public String getZookeeperPath() {
-        if (getMetadataStoreType() != Configuration.METADATASTORE_ZOOKEEPER) {
-            return "";
-        }
-        return metadata_store.zookeeper.path;
-    }
-
-    /**
-     * Get metadata store file location.
-     */
-    public String getMetadataFile() {
-        if (getMetadataStoreType() != Configuration.METADATASTORE_FILE) {
-            return "";
-        }
-        return metadata_store.file.path;
     }
 
     /**
@@ -477,25 +399,6 @@ public class Configuration {
         } else {
             return null;
         }
-    }
-
-    /**
-     * Kafka configuation getters.
-     */
-    public String getKafkaBrokerAddress() {
-        return kafka.broker;
-    }
-
-    public List<String> getKafkaTableList() {
-        return kafka.tables;
-    }
-
-    public List<String> getKafkaExcludeTableList() {
-        return kafka.excludetables;
-    }
-
-    public String getKafkaTopicName() {
-        return kafka.topic;
     }
 
     public boolean isDryRunMode() {

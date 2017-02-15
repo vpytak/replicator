@@ -9,6 +9,7 @@ import com.booking.replication.applier.kafka.RowListMessage;
 import com.booking.replication.augmenter.AugmentedRow;
 import com.booking.replication.augmenter.AugmentedRowsEvent;
 import com.booking.replication.augmenter.AugmentedSchemaChangeEvent;
+import com.booking.replication.configuration.KafkaConfiguration;
 import com.booking.replication.pipeline.PipelineOrchestrator;
 
 import com.google.code.or.binlog.BinlogEventV4;
@@ -116,13 +117,14 @@ public class KafkaApplier implements Applier {
         return prop;
     }
 
-    public KafkaApplier(Configuration configuration, Meter meterForMessagesPushedToKafka) throws IOException {
-        DRY_RUN = configuration.isDryRunMode();
+    public KafkaApplier(KafkaConfiguration kafkaConfiguration, Meter meterForMessagesPushedToKafka) throws IOException {
+        // TODO: check!
+        DRY_RUN = kafkaConfiguration.isDryRunMode();
 
-        fixedListOfIncludedTables = configuration.getKafkaTableList();
-        excludeTablePatterns = configuration.getKafkaExcludeTableList();
-        topicName = configuration.getKafkaTopicName();
-        brokerAddress = configuration.getKafkaBrokerAddress();
+        fixedListOfIncludedTables = kafkaConfiguration.getTables();
+        excludeTablePatterns = kafkaConfiguration.getExcludeTables();
+        topicName = kafkaConfiguration.getTopic();
+        brokerAddress = kafkaConfiguration.getBroker();
         this.meterForMessagesPushedToKafka = meterForMessagesPushedToKafka;
 
         if (!DRY_RUN) {
