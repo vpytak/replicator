@@ -10,9 +10,9 @@ import java.util.List;
  */
 public class ZookeeperConfiguration {
     public List<String> quorum;
-    public String path = "/";
+    public String path;
 
-    public ZookeeperConfiguration() throws ConfigurationException {
+    public ZookeeperConfiguration(List<String> quorum, String path) throws ConfigurationException {
         if (quorum == null) throw new ConfigurationException("Metadata store set as zookeeper but no zookeeper quorum is specified");
     }
 

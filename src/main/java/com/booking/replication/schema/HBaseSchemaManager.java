@@ -1,6 +1,7 @@
 package com.booking.replication.schema;
 
 import com.booking.replication.augmenter.AugmentedSchemaChangeEvent;
+import com.booking.replication.configuration.MainConfiguration;
 import com.booking.replication.util.JsonBuilder;
 
 import org.apache.hadoop.conf.Configuration;
@@ -159,11 +160,9 @@ public class HBaseSchemaManager {
 
     public void writeSchemaSnapshotToHBase(
             AugmentedSchemaChangeEvent event,
-            com.booking.replication.Configuration configuration) {
-
-        // get database_name
-        String mySqlDbName = configuration.getReplicantSchemaName();
-
+            MainConfiguration mainConfiguration,
+            com.booking.replication.configuration.HBaseConfiguration hBaseConfiguration
+    ) {
         // get sql_statement
         String ddl = event.getSchemaTransitionSequence().get("ddl");
         if (ddl == null) {
@@ -189,10 +188,10 @@ public class HBaseSchemaManager {
         // get event timestamp
         Long eventTimestamp = event.getSchemaChangeEventTimestamp();
 
-        String hbaseTableName = TableNameMapper.getSchemaHistoryHBaseTableName(configuration);
+        String hbaseTableName = TableNameMapper.getSchemaHistoryHBaseTableName(hBaseConfiguration.getNamespace());
 
         String hbaseRowKey = eventTimestamp.toString();
-        if (configuration.isInitialSnapshotMode()) {
+        if (mainConfiguration.isInitialSnapshotMode()) {
             // in initial-snapshot mode timestamp is overridden by 0 so all create statements
             // fall under the same timestamp. This is ok since there should be only one schema
             // snapshot for the initial-snapshot. However, having key=0 is not good, so replace

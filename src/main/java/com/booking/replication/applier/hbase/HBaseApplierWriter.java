@@ -9,6 +9,8 @@ import com.booking.replication.augmenter.AugmentedRow;
 import com.booking.replication.augmenter.AugmentedRowsEvent;
 import com.booking.replication.checkpoints.LastCommittedPositionCheckpoint;
 
+import com.booking.replication.configuration.MainConfiguration;
+import com.booking.replication.configuration.ValidationConfiguration;
 import com.booking.replication.validation.ValidationService;
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
@@ -116,7 +118,7 @@ public class HBaseApplierWriter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(HBaseApplierWriter.class);
 
-    private final Configuration hbaseConf = HBaseConfiguration.create();
+    private final Configuration hBaseClientConf = HBaseConfiguration.create();
 
     private final ValidationService validationService;
 
@@ -159,25 +161,27 @@ public class HBaseApplierWriter {
      */
     public HBaseApplierWriter(
             int poolSize,
-            com.booking.replication.Configuration configuration,
+            MainConfiguration mainConfiguration,
+            com.booking.replication.configuration.HBaseConfiguration hBaseConfiguration,
+            ValidationConfiguration validationConfiguration,
             Counter tasksSucceededCounter,
             ValidationService validationService
     ) {
-        DRY_RUN = configuration.isDryRunMode();
+        DRY_RUN = mainConfiguration.isDryRunMode();
 
         this.validationService = validationService;
 
         this.poolSize = poolSize;
         taskPool          = Executors.newFixedThreadPool(this.poolSize);
 
-        mutationGenerator = new HBaseApplierMutationGenerator(configuration);
+        mutationGenerator = new HBaseApplierMutationGenerator(mainConfiguration, hBaseConfiguration, validationConfiguration);
 
-        hbaseConf.set("hbase.zookeeper.quorum", configuration.getHBaseQuorum());
-        hbaseConf.set("hbase.client.keyvalue.maxsize", "0");
+        hBaseClientConf.set("hbase.zookeeper.quorum", hBaseConfiguration.getZookeeperConfiguration().getQuorumString());
+        hBaseClientConf.set("hbase.client.keyvalue.maxsize", "0");
 
         if (! DRY_RUN) {
             try {
-                hbaseConnection = ConnectionFactory.createConnection(hbaseConf);
+                hbaseConnection = ConnectionFactory.createConnection(hBaseClientConf);
             } catch (IOException e) {
                 LOGGER.error("Failed to create hbase connection", e);
             }
@@ -533,7 +537,7 @@ public class HBaseApplierWriter {
             int retry = 10;
             while (retry > 0) {
                 try {
-                    hbaseConnection = ConnectionFactory.createConnection(hbaseConf);
+                    hbaseConnection = ConnectionFactory.createConnection(hBaseClientConf);
                     retry = 0;
                 } catch (IOException e) {
                     LOGGER.warn("Failed to create hbase connection from HBaseApplier, attempt " + retry + "/10");

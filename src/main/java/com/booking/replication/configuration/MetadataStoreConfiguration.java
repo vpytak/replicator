@@ -1,5 +1,7 @@
 package com.booking.replication.configuration;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import javax.naming.ConfigurationException;
 
 /**
@@ -39,6 +41,27 @@ public class MetadataStoreConfiguration {
         } else {
             throw new RuntimeException("Metadata store not configured, please define a zookeeper or file metadata store.");
         }
+    }
+
+    public String getActiveSchemaDSN() {
+        return String.format("jdbc:mysql://%s/%s", host, database);
+    }
+
+    public String getActiveSchemaHost() {
+        return host;
+    }
+
+    public String getActiveSchemaUserName() {
+        return username;
+    }
+
+    @JsonIgnore
+    public String getActiveSchemaPassword() {
+        return password;
+    }
+
+    public String getActiveSchemaDB() {
+        return database;
     }
 
     public ZookeeperConfiguration getZookeeper() {

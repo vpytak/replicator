@@ -65,24 +65,21 @@ public class ValidationService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ValidationService.class);
 
-    public static ValidationService getInstance(Configuration configuration){
+    public static ValidationService getInstance(ValidationConfiguration validationConfiguration){
+        if (validationConfiguration == null) return null;
 
-        ValidationConfiguration validationConfig = configuration.getValidationConfiguration();
-
-        if (validationConfig == null) return null;
-
-        if (validationConfig.getBroker() == null
-                || validationConfig.getSourceDomain() == null
-                || validationConfig.getTargetDomain() == null
-                || validationConfig.getTopic() == null) throw new IllegalArgumentException("Bad validation configuration");
+        if (validationConfiguration.getBroker() == null
+                || validationConfiguration.getSourceDomain() == null
+                || validationConfiguration.getTargetDomain() == null
+                || validationConfiguration.getTopic() == null) throw new IllegalArgumentException("Bad validation configuration");
 
         Properties properties = new Properties();
-        properties.put("bootstrap.servers", validationConfig.getBroker());
+        properties.put("bootstrap.servers", validationConfiguration.getBroker());
 
         Producer<String,String> producer = new KafkaProducer(properties, new StringSerializer(), new StringSerializer());
 
 
-        return new ValidationService(producer, validationConfig.getTopic(), validationConfig.getTag(), validationConfig.getThrottling());
+        return new ValidationService(producer, validationConfiguration.getTopic(), validationConfiguration.getTag(), validationConfiguration.getThrottling());
 
     }
 

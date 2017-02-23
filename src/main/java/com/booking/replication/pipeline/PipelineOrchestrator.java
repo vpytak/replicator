@@ -2,7 +2,6 @@ package com.booking.replication.pipeline;
 
 import static com.codahale.metrics.MetricRegistry.name;
 
-import com.booking.replication.Configuration;
 import com.booking.replication.Constants;
 import com.booking.replication.Coordinator;
 import com.booking.replication.Metrics;
@@ -13,6 +12,10 @@ import com.booking.replication.augmenter.AugmentedRowsEvent;
 import com.booking.replication.augmenter.AugmentedSchemaChangeEvent;
 import com.booking.replication.augmenter.EventAugmenter;
 import com.booking.replication.checkpoints.LastCommittedPositionCheckpoint;
+import com.booking.replication.configuration.MainConfiguration;
+import com.booking.replication.configuration.MetadataStoreConfiguration;
+import com.booking.replication.configuration.MySQLFailoverConfiguration;
+import com.booking.replication.configuration.ReplicationSchemaConfiguration;
 import com.booking.replication.queues.ReplicatorQueues;
 import com.booking.replication.replicant.ReplicantPool;
 import com.booking.replication.schema.ActiveSchemaVersion;
@@ -51,11 +54,11 @@ import java.util.concurrent.TimeUnit;
  * </p>
  */
 public class PipelineOrchestrator extends Thread {
-
-    public  final  Configuration                   configuration;
+    private final  MainConfiguration               mainConfiguration;
+    private final  ReplicationSchemaConfiguration  replicationSchemaConfiguration;
     private final  ReplicantPool                   replicantPool;
     private final  Applier                         applier;
-    private final  ReplicatorQueues                queues;
+    private final  ReplicatorQueues                replicatorQueues;
     private final  QueryInspector                  queryInspector;
     private static EventAugmenter                  eventAugmenter;
     private static ActiveSchemaVersion             activeSchemaVersion;
@@ -123,30 +126,30 @@ public class PipelineOrchestrator extends Thread {
     }
 
     public PipelineOrchestrator(
-            ReplicatorQueues repQueues,
+            MainConfiguration mainConfiguration,
+            MetadataStoreConfiguration metadataStoreConfiguration,
+            MySQLFailoverConfiguration mySQLFailoverConfiguration,
+            ReplicationSchemaConfiguration replicationSchemaConfiguration,
+            ReplicatorQueues replicatorQueues,
             PipelinePosition pipelinePosition,
-            Configuration repcfg,
             Applier applier,
-            ReplicantPool replicantPool) throws SQLException, URISyntaxException {
-
-        queues = repQueues;
-        configuration = repcfg;
-
+            ReplicantPool replicantPool
+    ) throws SQLException, URISyntaxException {
+        this.mainConfiguration = mainConfiguration;
+        this.replicatorQueues = replicatorQueues;
+        this.pipelinePosition = pipelinePosition;
+        this.replicationSchemaConfiguration = replicationSchemaConfiguration;
+        this.applier = applier;
         this.replicantPool = replicantPool;
 
-        activeSchemaVersion =  new ActiveSchemaVersion(configuration);
+        activeSchemaVersion =  new ActiveSchemaVersion(metadataStoreConfiguration);
         eventAugmenter = new EventAugmenter(activeSchemaVersion);
-
         currentTransactionMetadata = new CurrentTransactionMetadata();
-
-        this.applier = applier;
+        queryInspector = new QueryInspector(mySQLFailoverConfiguration.getpGTIDPattern());
 
         LOGGER.info("Created consumer with binlog position => { "
-                + " binlogFileName => "
-                +   pipelinePosition.getCurrentPosition().getBinlogFilename()
-                + ", binlogPosition => "
-                +   pipelinePosition.getCurrentPosition().getBinlogPosition()
-                + " }"
+                + " binlogFileName => " + pipelinePosition.getCurrentPosition().getBinlogFilename()
+                + ", binlogPosition => " +   pipelinePosition.getCurrentPosition().getBinlogPosition() + " }"
         );
 
         Metrics.registry.register(MetricRegistry.name("events", "replicatorReplicationDelay"),
@@ -156,10 +159,6 @@ public class PipelineOrchestrator extends Thread {
                     return replDelay;
                 }
             });
-
-        this.pipelinePosition = pipelinePosition;
-
-        this.queryInspector = new QueryInspector(configuration.getpGTIDPattern());
     }
 
     public boolean isRunning() {
@@ -178,9 +177,9 @@ public class PipelineOrchestrator extends Thread {
 
         while (isRunning()) {
             try {
-                if (queues.rawQueue.size() > 0) {
+                if (replicatorQueues.rawQueue.size() > 0) {
                     BinlogEventV4 event =
-                            queues.rawQueue.poll(100, TimeUnit.MILLISECONDS);
+                            replicatorQueues.rawQueue.poll(100, TimeUnit.MILLISECONDS);
 
                     if (event == null) {
                         LOGGER.warn("Poll timeout. Will sleep for 1s and try again.");
@@ -525,8 +524,8 @@ public class PipelineOrchestrator extends Thread {
                     e.printStackTrace();
                 }
 
-                if (currentBinlogFileName.equals(configuration.getLastBinlogFileName())) {
-                    LOGGER.info("processed the last binlog file " + configuration.getLastBinlogFileName());
+                if (currentBinlogFileName.equals(mainConfiguration.getEndingBinlogFileName())) {
+                    LOGGER.info("processed the last binlog file " + mainConfiguration.getEndingBinlogFileName());
                     setRunning(false);
                     requestReplicatorShutdown();
                 }
@@ -546,7 +545,7 @@ public class PipelineOrchestrator extends Thread {
     }
 
     public boolean isReplicant(String schemaName) {
-        return schemaName.equals(configuration.getReplicantSchemaName());
+        return schemaName.equals(replicationSchemaConfiguration.getName());
     }
 
     /**
@@ -692,7 +691,7 @@ public class PipelineOrchestrator extends Thread {
     }
 
     private void doTimestampOverride(BinlogEventV4 event) {
-        if (configuration.isInitialSnapshotMode()) {
+        if (mainConfiguration.isInitialSnapshotMode()) {
             doInitialSnapshotEventTimestampOverride(event);
         } else {
             injectFakeMicroSecondsIntoEventTimestamp(event);

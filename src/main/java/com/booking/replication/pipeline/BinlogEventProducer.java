@@ -5,6 +5,7 @@ import static com.codahale.metrics.MetricRegistry.name;
 import com.booking.replication.Configuration;
 import com.booking.replication.Constants;
 import com.booking.replication.Metrics;
+import com.booking.replication.configuration.ReplicationSchemaConfiguration;
 import com.booking.replication.replicant.ReplicantPool;
 import com.google.code.or.OpenReplicator;
 import com.google.code.or.binlog.BinlogEventListener;
@@ -31,7 +32,7 @@ public class BinlogEventProducer {
     private final PipelinePosition pipelinePosition;
 
     private final OpenReplicator   openReplicator;
-    private final Configuration    configuration;
+    private final ReplicationSchemaConfiguration replicationSchemaConfiguration;
     private final ReplicantPool    replicantPool;
 
     private long opCounter = 0;
@@ -45,14 +46,14 @@ public class BinlogEventProducer {
      *
      * @param queue             Event queue.
      * @param pipelinePosition  Binlog position information
-     * @param configuration     Replicator configuration
+     * @param replicationSchemaConfiguration     Replicator configuration
      */
     public BinlogEventProducer(
             BlockingQueue<BinlogEventV4> queue,
             PipelinePosition pipelinePosition,
-            Configuration configuration,
+            ReplicationSchemaConfiguration replicationSchemaConfiguration,
             ReplicantPool replicantPool) {
-        this.configuration = configuration;
+        this.replicationSchemaConfiguration = replicationSchemaConfiguration;
         this.queue = queue;
         this.pipelinePosition = pipelinePosition;
         this.replicantPool = replicantPool;
@@ -79,9 +80,9 @@ public class BinlogEventProducer {
         int serverId = (random.nextInt() >>> 1) | (1 << 30); // a large positive random integer
 
         // config
-        openReplicator.setUser(configuration.getReplicantDBUserName());
-        openReplicator.setPassword(configuration.getReplicantDBPassword());
-        openReplicator.setPort(configuration.getReplicantPort());
+        openReplicator.setUser(replicationSchemaConfiguration.getName());
+        openReplicator.setPassword(replicationSchemaConfiguration.getPassword());
+        openReplicator.setPort(replicationSchemaConfiguration.getPort());
 
         // pool
         openReplicator.setHost(pipelinePosition.getCurrentReplicantHostName());

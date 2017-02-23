@@ -2,6 +2,7 @@ package com.booking.replication.schema;
 
 import com.booking.replication.Configuration;
 import com.booking.replication.augmenter.AugmentedSchemaChangeEvent;
+import com.booking.replication.configuration.MetadataStoreConfiguration;
 import com.booking.replication.schema.column.ColumnSchema;
 import com.booking.replication.schema.column.types.EnumColumnSchema;
 import com.booking.replication.schema.column.types.SetColumnSchema;
@@ -37,6 +38,8 @@ import java.util.regex.Pattern;
  */
 public class ActiveSchemaVersion {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(ActiveSchemaVersion.class);
+
     private static final String SHOW_TABLES_SQL        = "SHOW TABLES";
     private static final String SHOW_CREATE_TABLE_SQL  = "SHOW CREATE TABLE ";
     private static final String INFORMATION_SCHEMA_SQL =
@@ -44,29 +47,26 @@ public class ActiveSchemaVersion {
 
     private final HashMap<String,String> activeSchemaCreateStatements = new HashMap<>();
     private final HashMap<String,TableSchemaVersion> activeSchemaTables      = new HashMap<>();
-
     private String lastReceivedDDL = null;
-
-    private final Configuration configuration;
+    private final String activeSchemaDB;
 
     // TODO: refactor this so that datasource is passed in constructor
     //       so that same pool is shared for different objects
     private final BasicDataSource activeSchemaDataSource;
-    private static final Logger LOGGER = LoggerFactory.getLogger(ActiveSchemaVersion.class);
 
-    public ActiveSchemaVersion(Configuration replicatorConfiguration) throws URISyntaxException, SQLException {
+
+    public ActiveSchemaVersion(MetadataStoreConfiguration metadataStoreConfiguration) throws URISyntaxException, SQLException {
 
         activeSchemaDataSource = new BasicDataSource();
 
         activeSchemaDataSource.setDriverClassName("com.mysql.jdbc.Driver");
-        activeSchemaDataSource.setUrl(replicatorConfiguration.getActiveSchemaDSN());
+        activeSchemaDataSource.setUrl(metadataStoreConfiguration.getActiveSchemaDSN());
 
         activeSchemaDataSource.addConnectionProperty("useUnicode", "true");
         activeSchemaDataSource.addConnectionProperty("characterEncoding", "UTF-8");
-        activeSchemaDataSource.setUsername(replicatorConfiguration.getActiveSchemaUserName());
-        activeSchemaDataSource.setPassword(replicatorConfiguration.getActiveSchemaPassword());
-
-        configuration = replicatorConfiguration;
+        activeSchemaDataSource.setUsername(metadataStoreConfiguration.getActiveSchemaUserName());
+        activeSchemaDataSource.setPassword(metadataStoreConfiguration.getActiveSchemaPassword());
+        activeSchemaDB = metadataStoreConfiguration.getActiveSchemaDB();
 
         loadActiveSchema();
 
@@ -155,7 +155,7 @@ public class ActiveSchemaVersion {
 
         PreparedStatement getTableInfoStatement =
                 con.prepareStatement(INFORMATION_SCHEMA_SQL);
-        getTableInfoStatement.setString(1, this.configuration.getActiveSchemaDB());
+        getTableInfoStatement.setString(1, activeSchemaDB);
         getTableInfoStatement.setString(2, tableName);
 
         ResultSet getTableInfoResultSet = getTableInfoStatement.executeQuery();

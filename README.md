@@ -77,7 +77,7 @@ kafka:
     excludetables: ["exlude_pattern_1",..., "exclude_pattern_N"]
 hbase:
     namespace: 'schema_namespace'
-    zookeeper_quorum:  ['hbase-zk1-host', 'hbase-zkN-host']
+    zookeeperQuorum:  ['hbase-zk1-host', 'hbase-zkN-host']
     hive_imports:
         tables: ['sometable']
 

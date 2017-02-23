@@ -1,5 +1,7 @@
 package com.booking.replication.configuration;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import javax.naming.ConfigurationException;
 import java.io.Serializable;
 import java.util.List;
@@ -35,6 +37,7 @@ public class ReplicationSchemaConfiguration implements Serializable{
         return username;
     }
 
+    @JsonIgnore
     public String getPassword() {
         return password;
     }

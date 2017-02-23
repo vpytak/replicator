@@ -2,6 +2,7 @@ package com.booking.replication;
 
 import com.booking.replication.applier.*;
 import com.booking.replication.checkpoints.LastCommittedPositionCheckpoint;
+import com.booking.replication.configuration.*;
 import com.booking.replication.monitor.*;
 import com.booking.replication.pipeline.BinlogEventProducer;
 import com.booking.replication.pipeline.BinlogPositionInfo;
@@ -45,41 +46,47 @@ public class Replicator {
     private static final Logger LOGGER = LoggerFactory.getLogger(Replicator.class);
 
     // Replicator()
-    public Replicator(Configuration configuration, ReplicatorHealthTrackerProxy healthTracker, Counter interestingEventsObservedCounter) throws Exception {
+    public Replicator(MainConfiguration mainConfiguration,
+                      MySQLFailoverConfiguration mySQLFailoverConfiguration,
+                      ReplicationSchemaConfiguration replicationSchemaConfiguration,
+                      HBaseConfiguration hBaseConfiguration,
+                      MetadataStoreConfiguration metadataStoreConfiguration,
+                      KafkaConfiguration kafkaConfiguration,
+                      ValidationConfiguration validationConfiguration,
+                      ReplicatorHealthTrackerProxy healthTracker,
+                      Counter interestingEventsObservedCounter
+    ) throws Exception {
 
         this.healthTracker = healthTracker;
 
-        boolean mysqlFailoverActive = false;
-        if (configuration.getMySQLFailover() != null) {
-            mysqlFailoverActive = true;
-        }
+        boolean mysqlFailoverActive = mySQLFailoverConfiguration != null;
 
         // Replicant Pool
-        replicantPool = new ReplicantPool(configuration.getReplicantDBHostPool(), configuration);
+        replicantPool = new ReplicantPool(replicationSchemaConfiguration.getHostPool(), replicationSchemaConfiguration);
 
         // 1. init pipelinePosition -> move to separate method
         if (mysqlFailoverActive) {
 
             // mysql high-availability mode
-            if (configuration.getStartingBinlogFileName() != null) {
+            if (mainConfiguration.getStartingBinlogFileName() != null) {
 
                 // TODO: make mandatory to specify host name when starting from specific binlog file
                 // At the moment the first host in the pool list is assumed when starting with
                 // specified binlog-file
 
-                String mysqlHost = configuration.getReplicantDBHostPool().get(0);
+                String mysqlHost = replicationSchemaConfiguration.getHostPool().get(0);
                 int serverID     = replicantPool.getReplicantDBActiveHostServerID();
 
                 LOGGER.info(String.format("Starting replicator in high-availability mode with: "
                         + "mysql-host %s, server-id %s, binlog-filename %s",
-                        mysqlHost, serverID, configuration.getStartingBinlogFileName()));
+                        mysqlHost, serverID, mainConfiguration.getStartingBinlogFileName()));
 
                 pipelinePosition = new PipelinePosition(
                         mysqlHost,
                         serverID,
-                        configuration.getStartingBinlogFileName(),
-                        configuration.getStartingBinlogPosition(),
-                        configuration.getStartingBinlogFileName(),
+                        mainConfiguration.getStartingBinlogFileName(),
+                        mainConfiguration.getStartingBinlogPosition(),
+                        mainConfiguration.getStartingBinlogFileName(),
                         4L
                 );
 
@@ -103,7 +110,12 @@ public class Replicator {
 
                         LOGGER.info("found pseudoGTID in safe checkpoint: " + pseudoGTID);
 
-                        BinlogCoordinatesFinder coordinatesFinder = new BinlogCoordinatesFinder(replicantActiveHost,3306,configuration.getReplicantDBUserName(),configuration.getReplicantDBPassword(), new QueryInspector(configuration.getpGTIDPattern()));
+                        BinlogCoordinatesFinder coordinatesFinder = new BinlogCoordinatesFinder(
+                                replicantActiveHost,
+                                3306,
+                                replicationSchemaConfiguration.getUsername(),
+                                replicationSchemaConfiguration.getPassword(),
+                                new QueryInspector(mySQLFailoverConfiguration.getpGTIDPattern()));
 
                         BinlogCoordinatesFinder.BinlogCoordinates coordinates = coordinatesFinder.findCoordinates(pseudoGTID);
 
@@ -151,25 +163,25 @@ public class Replicator {
             }
         } else {
             // single replicant mode
-            if (configuration.getStartingBinlogFileName() != null) {
+            if (mainConfiguration.getStartingBinlogFileName() != null) {
 
                 // TODO: make mandatory to specify host name when starting from specific binlog file
                 // At the moment the first host in the pool list is assumed when starting with
                 // specified binlog-file
 
-                String mysqlHost = configuration.getReplicantDBHostPool().get(0);
+                String mysqlHost = replicationSchemaConfiguration.getHostPool().get(0);
                 int serverID     = replicantPool.getReplicantDBActiveHostServerID();
 
                 LOGGER.info(String.format("Starting replicator in single-replicant mode with: "
                     + "mysql-host %s, server-id %s, binlog-filename %s",
-                    mysqlHost, serverID, configuration.getStartingBinlogFileName()));
+                    mysqlHost, serverID, mainConfiguration.getStartingBinlogFileName()));
 
                 pipelinePosition = new PipelinePosition(
                     mysqlHost,
                     serverID,
-                    configuration.getStartingBinlogFileName(),
-                    configuration.getStartingBinlogPosition(),
-                    configuration.getStartingBinlogFileName(),
+                    mainConfiguration.getStartingBinlogFileName(),
+                    mainConfiguration.getStartingBinlogPosition(),
+                    mainConfiguration.getStartingBinlogFileName(),
                     4L
                 );
             } else {
@@ -208,11 +220,11 @@ public class Replicator {
         }
 
         // 2. validate pipelinePosition
-        if (configuration.getLastBinlogFileName() != null
+        if (mainConfiguration.getEndingBinlogFileName() != null
                 && pipelinePosition.getStartPosition().greaterThan(new BinlogPositionInfo(
                     replicantPool.getReplicantDBActiveHost(),
                     replicantPool.getReplicantDBActiveHostServerID(),
-                    configuration.getLastBinlogFileName(), 4L))) {
+                    mainConfiguration.getEndingBinlogFileName(), 4L))) {
             LOGGER.error(String.format(
                     "The current position is beyond the last position you configured.\nThe current position is: %s %s",
                     pipelinePosition.getStartPosition().getBinlogFilename(),
@@ -233,52 +245,63 @@ public class Replicator {
         binlogEventProducer = new BinlogEventProducer(
             replicatorQueues.rawQueue,
             pipelinePosition,
-            configuration,
+            replicationSchemaConfiguration,
             replicantPool
         );
 
         // Validation service
-        ValidationService validationService = ValidationService.getInstance(configuration);
+        ValidationService validationService = ValidationService.getInstance(validationConfiguration);
 
         // Applier
         Applier applier;
         Counting mainProgressCounter = null;
         String mainProgressCounterDescription = null;
 
-        if (configuration.getApplierType().equals("STDOUT")) {
-            applier = new EventCountingApplier(new StdoutJsonApplier(configuration), interestingEventsObservedCounter);
-        } else if (configuration.getApplierType().toLowerCase().equals("hbase")) {
-            mainProgressCounter = Metrics.registry.counter(name("HBase", "applierTasksSucceededCounter"));
-            mainProgressCounterDescription = "# of HBase tasks that have succeeded";
-            applier = new EventCountingApplier(new HBaseApplier(configuration, (Counter)mainProgressCounter, validationService), interestingEventsObservedCounter);
-        } else if (configuration.getApplierType().toLowerCase().equals("kafka")) {
-            mainProgressCounter = Metrics.registry.meter(name("Kafka", "producerToBroker"));
-            mainProgressCounterDescription = "# of messages pushed to the Kafka broker";
-            applier = new EventCountingApplier(new KafkaApplier(configuration.getKafkaConfiguration(), (Meter)mainProgressCounter), interestingEventsObservedCounter);
-        } else {
-            throw new RuntimeException(String.format("Unknown applier: %s", configuration.getApplierType()));
+        switch (mainConfiguration.getApplierType()) {
+            case "STDOUT":
+                applier = new EventCountingApplier(new StdoutJsonApplier(), interestingEventsObservedCounter);
+                break;
+            case "hbase":
+                mainProgressCounter = Metrics.registry.counter(name("HBase", "applierTasksSucceededCounter"));
+                mainProgressCounterDescription = "# of HBase tasks that have succeeded";
+                applier = new EventCountingApplier(
+                        new HBaseApplier(mainConfiguration,
+                                hBaseConfiguration,
+                                replicationSchemaConfiguration,
+                                validationConfiguration,
+                                (Counter)mainProgressCounter,
+                                validationService),
+                        interestingEventsObservedCounter);
+                break;
+            case "kafka":
+                mainProgressCounter = Metrics.registry.meter(name("Kafka", "producerToBroker"));
+                mainProgressCounterDescription = "# of messages pushed to the Kafka broker";
+                applier = new EventCountingApplier(new KafkaApplier(kafkaConfiguration, (Meter)mainProgressCounter), interestingEventsObservedCounter);
+                break;
+            default:
+                throw new RuntimeException(String.format("Unknown applier: %s", mainConfiguration.getApplierType()));
         }
 
-        if (mainProgressCounter != null)
-        {
+        if (mainProgressCounter != null) {
             ReplicatorHealthTracker tracker = new ReplicatorHealthTracker(
                     new ReplicatorDoctor(mainProgressCounter, mainProgressCounterDescription, LoggerFactory.getLogger(ReplicatorDoctor.class.getName()), interestingEventsObservedCounter), 600);
 
             this.healthTracker.setTrackerImplementation(tracker);
         }
-        else
-        {
+        else {
             this.healthTracker.setTrackerImplementation(new ReplicatorHealthTrackerDummy());
         }
 
         // Orchestrator
-        pipelineOrchestrator = new PipelineOrchestrator(
-            replicatorQueues,
-            pipelinePosition,
-            configuration,
-            applier,
-            replicantPool
-    );
+        pipelineOrchestrator = new PipelineOrchestrator(mainConfiguration,
+                metadataStoreConfiguration,
+                mySQLFailoverConfiguration,
+                replicationSchemaConfiguration,
+                replicatorQueues,
+                pipelinePosition,
+                applier,
+                replicantPool
+        );
 
         // Overseer
         overseer = new Overseer(

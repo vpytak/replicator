@@ -7,6 +7,10 @@ import com.booking.replication.applier.hbase.TaskBufferInconsistencyException;
 import com.booking.replication.augmenter.AugmentedRowsEvent;
 import com.booking.replication.augmenter.AugmentedSchemaChangeEvent;
 import com.booking.replication.checkpoints.LastCommittedPositionCheckpoint;
+import com.booking.replication.configuration.HBaseConfiguration;
+import com.booking.replication.configuration.MainConfiguration;
+import com.booking.replication.configuration.ReplicationSchemaConfiguration;
+import com.booking.replication.configuration.ValidationConfiguration;
 import com.booking.replication.pipeline.PipelineOrchestrator;
 import com.booking.replication.schema.HBaseSchemaManager;
 
@@ -41,9 +45,7 @@ public class HBaseApplier implements Applier {
 
     // TODO: move configuration vars to Configuration
     private static final int POOL_SIZE = 30;
-
     private static final int UUID_BUFFER_SIZE = 1000; // <- max number of rows in one uuid buffer
-
     private static final int BUFFER_FLUSH_INTERVAL = 60000; // <- force buffer flush every 60 sec
 
     private static final Logger LOGGER = LoggerFactory.getLogger(HBaseApplier.class);
@@ -56,28 +58,37 @@ public class HBaseApplier implements Applier {
 
     private long timeOfLastFlush = 0;
 
-    private final com.booking.replication.Configuration configuration;
+    private final MainConfiguration mainConfiguration;
+    private final HBaseConfiguration hBaseConfiguration;
+    private final ReplicationSchemaConfiguration replicationSchemaConfiguration;
 
     /**
      * HBaseApplier constructor.
      */
     public HBaseApplier(
-        com.booking.replication.Configuration config,
+        MainConfiguration mainConfiguration,
+        HBaseConfiguration hBaseConfiguration,
+        ReplicationSchemaConfiguration replicationSchemaConfiguration,
+        ValidationConfiguration validationConfiguration,
         Counter mainProgressIndicator,
         ValidationService validationService
     ) {
-        configuration = config;
+        this.mainConfiguration = mainConfiguration;
+        this.hBaseConfiguration = hBaseConfiguration;
+        this.replicationSchemaConfiguration = replicationSchemaConfiguration;
 
         hbaseApplierWriter =
             new HBaseApplierWriter(
                     POOL_SIZE,
-                    configuration,
+                    mainConfiguration,
+                    hBaseConfiguration,
+                    validationConfiguration,
                     mainProgressIndicator,
                     validationService
             );
 
         hbaseSchemaManager = new HBaseSchemaManager(
-                configuration.getHBaseQuorum(), configuration.isDryRunMode());
+                hBaseConfiguration.getZookeeperConfiguration().getQuorumString(), hBaseConfiguration.isDryRunMode());
     }
 
 
@@ -112,7 +123,7 @@ public class HBaseApplier implements Applier {
     public void applyAugmentedSchemaChangeEvent(
             AugmentedSchemaChangeEvent event,
             PipelineOrchestrator caller) {
-        hbaseSchemaManager.writeSchemaSnapshotToHBase(event, configuration);
+        hbaseSchemaManager.writeSchemaSnapshotToHBase(event, mainConfiguration, hBaseConfiguration);
     }
 
     public void applyPseudoGTIDEvent(LastCommittedPositionCheckpoint pseudoGTIDCheckPoint)
@@ -155,7 +166,7 @@ public class HBaseApplier implements Applier {
     private String getHBaseNamespace(PipelineOrchestrator pipeline) {
 
         // get database name from event
-        String mySqlDbName = configuration.getReplicantSchemaName();
+        String mySqlDbName = replicationSchemaConfiguration.getName();
         String currentTransactionDB = pipeline.currentTransactionMetadata
                 .getFirstMapEventInTransaction()
                 .getDatabaseName()
@@ -219,7 +230,7 @@ public class HBaseApplier implements Applier {
 
         String tableName = event.getTableName().toString();
 
-        String hbaseTableName = configuration.getHbaseNamespace().toLowerCase()
+        String hbaseTableName = hBaseConfiguration.getNamespace().toLowerCase()
                 + ":"
                 + tableName.toLowerCase();
 
@@ -230,24 +241,27 @@ public class HBaseApplier implements Applier {
             hbaseSchemaManager.createMirroredTableIfNotExists(hbaseTableName, DEFAULT_VERSIONS_FOR_MIRRORED_TABLES);
         }
 
-        if (configuration.isWriteRecentChangesToDeltaTables()) {
+        if (hBaseConfiguration.isWriteRecentChangesToDeltaTables()) {
 
             //String replicantSchema = ((TableMapEvent) event).getDatabaseName().toString();
             String mysqlTableName = ((TableMapEvent) event).getTableName().toString();
 
-            if (configuration.getTablesForWhichToTrackDailyChanges().contains(mysqlTableName)) {
+            // get tables for which to track daily changes
+            if (hBaseConfiguration.getHiveImports().getTables().contains(mysqlTableName)) {
 
                 long eventTimestampMicroSec = event.getHeader().getTimestamp();
 
                 String deltaTableName = TableNameMapper.getCurrentDeltaTableName(
                         eventTimestampMicroSec,
-                        configuration.getHbaseNamespace(),
+                        hBaseConfiguration.getNamespace(),
                         mysqlTableName,
-                        configuration.isInitialSnapshotMode());
+                        mainConfiguration.isInitialSnapshotMode());
+
                 if (! hbaseSchemaManager.isTableKnownToHBase(deltaTableName)) {
-                    boolean isInitialSnapshotMode = configuration.isInitialSnapshotMode();
+                    boolean isInitialSnapshotMode = mainConfiguration.isInitialSnapshotMode();
                     hbaseSchemaManager.createDeltaTableIfNotExists(deltaTableName, isInitialSnapshotMode);
                 }
+
             }
         }
     }

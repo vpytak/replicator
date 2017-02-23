@@ -3,7 +3,6 @@ package com.booking.replication;
 import com.booking.replication.configuration.*;
 import com.booking.replication.util.Duration;
 import com.booking.replication.util.StartupParameters;
-import com.google.common.base.Joiner;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -14,7 +13,6 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 import javax.naming.ConfigurationException;
 import java.io.Serializable;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -32,6 +30,15 @@ public class Configuration {
     private String  startingBinlogFileName;
     private String  endingBinlogFileName;
     private String  applierType;
+    private MainConfiguration mainConfiguration = null;
+
+    public MainConfiguration getMainConfiguration() throws ConfigurationException {
+        if (mainConfiguration == null) {
+            mainConfiguration = new MainConfiguration(initialSnapshotMode, dryRunMode, startingBinlogPosition,
+                    startingBinlogFileName, endingBinlogFileName, applierType);
+        }
+        return mainConfiguration;
+    }
 
     private static class ReplicationSchema implements Serializable {
         private String name;
@@ -55,57 +62,46 @@ public class Configuration {
     }
 
 
-
-
-
-
     @JsonDeserialize
     @JsonProperty("mysql_failover")
     private MySQLFailover mySQLFailover;
+    private MySQLFailoverConfiguration mySQLFailoverConfiguration = null;
 
     private static class MySQLFailover {
-
         @JsonDeserialize
-        PseudoGTIDConfig pgtid;
-
-        private static class PseudoGTIDConfig implements Serializable {
-            String p_gtid_pattern;
-            String p_gtid_prefix;
-        }
-
+        PseudoGTIDConfiguration pgtid;
         @JsonDeserialize
-        Orchestrator orchestrator;
-
-        private static class Orchestrator {
-            String username;
-            String password;
-            String url;
-        }
+        OrchestratorConfiguration orchestrator;
     }
+
+    public MySQLFailoverConfiguration getMySQLFailoverConfiguration() throws ConfigurationException {
+        if (mySQLFailoverConfiguration == null) {
+            mySQLFailoverConfiguration = new MySQLFailoverConfiguration(mySQLFailover.pgtid, mySQLFailover.orchestrator);
+        }
+        return mySQLFailoverConfiguration;
+    }
+
 
     @JsonDeserialize
     @JsonProperty("hbase")
-    private HBaseConfiguration hbaseConfiguration;
+    private HBase hbase;
+    private HBaseConfiguration hbaseConfiguration = null;
 
-    private static class HBaseConfiguration {
-
+    private static class HBase {
         String       namespace;
         List<String> zookeeper_quorum;
         boolean      writeRecentChangesToDeltaTables;
-
         @JsonDeserialize
-        HiveImports     hive_imports = new HiveImports();
-
-        private static class HiveImports {
-            public List<String> tables = Collections.emptyList();
-        }
+        HiveImportsConfiguration hive_imports = new HiveImportsConfiguration();
     }
 
-
-
-
-
-
+    public HBaseConfiguration getHBaseConfiguration() throws ConfigurationException {
+        if (hbaseConfiguration == null) {
+            hbaseConfiguration = new HBaseConfiguration(hbase.namespace, new ZookeeperConfiguration(hbase.zookeeper_quorum, "/"),
+                    hbase.writeRecentChangesToDeltaTables, hbase.hive_imports, dryRunMode);
+        }
+        return hbaseConfiguration;
+    }
 
 
     @JsonDeserialize
@@ -136,6 +132,7 @@ public class Configuration {
         return metadataStoreConfiguration;
     }
 
+
     @JsonDeserialize
     private Kafka kafka;
     private KafkaConfiguration kafkaConfiguration;
@@ -149,10 +146,11 @@ public class Configuration {
 
     public KafkaConfiguration getKafkaConfiguration(){
         if (kafkaConfiguration == null) {
-            kafkaConfiguration = new KafkaConfiguration(isDryRunMode(), kafka.broker, kafka.tables, kafka.excludetables, kafka.topic);
+            kafkaConfiguration = new KafkaConfiguration(dryRunMode, kafka.broker, kafka.tables, kafka.excludetables, kafka.topic);
         }
         return kafkaConfiguration;
     }
+
 
     private static class Validation {
         private String broker;
@@ -179,6 +177,7 @@ public class Configuration {
         return validationConfiguration;
     }
 
+
     public static class Metrics {
         Duration     frequency;
         @JsonDeserialize
@@ -198,57 +197,25 @@ public class Configuration {
     }
 
 
-
-
-
-
-
-
-
-
     /**
      * Apply command line parameters to the configuration object.
      *
      * @param startupParameters     Startup parameters
      */
-    public void loadStartupParameters(StartupParameters startupParameters ) {
-
-        applierType = startupParameters.getApplier();
-
-        if (applierType.equals("hbase") && hbaseConfiguration == null) {
-            throw new RuntimeException("HBase not configured");
-        }
-
-        // staring position
+    public void loadStartupParameters(StartupParameters startupParameters ) throws ConfigurationException {
+        dryRunMode = startupParameters.isDryrun();
+        initialSnapshotMode = startupParameters.isInitialSnapshot();
         startingBinlogFileName = startupParameters.getBinlogFileName();
         startingBinlogPosition = startupParameters.getBinlogPosition();
         endingBinlogFileName   = startupParameters.getLastBinlogFileName();
+        applierType = startupParameters.getApplier();
 
         // hbase specific parameters
-        if (applierType.equals("hbase") && hbaseConfiguration != null) {
-            // delta tables
-            hbaseConfiguration.writeRecentChangesToDeltaTables = startupParameters.isDeltaTables();
-            // namespace
-            if (startupParameters.getHbaseNamespace() != null) {
-                hbaseConfiguration.namespace = startupParameters.getHbaseNamespace();
-            }
-        }
-
-        // initial snapshot mode
-        initialSnapshotMode = startupParameters.isInitialSnapshot();
-
-        dryRunMode = startupParameters.isDryrun();
-
-    }
-
-    /**
-     * Validate configuration.
-     */
-    public void validate() {
         if (applierType.equals("hbase")) {
-            if (hbaseConfiguration.namespace == null) {
-                throw new RuntimeException("HBase namespace cannot be null.");
-            }
+            if (hbase == null) throw new ConfigurationException("HBase not configured");
+
+            hbase.writeRecentChangesToDeltaTables = startupParameters.isDeltaTables();
+            if (startupParameters.getHbaseNamespace() != null) hbase.namespace = startupParameters.getHbaseNamespace();
         }
     }
 
@@ -265,145 +232,5 @@ public class Configuration {
         }
         return "";
     }
-
-    // =========================================================================
-    // Replication schema config getters
-    public int getReplicantPort() {
-        return replicationSchema.port;
-    }
-
-    public List<String> getReplicantDBHostPool() {
-        return this.replicationSchema.host_pool;
-    }
-
-    public String getReplicantSchemaName() {
-        return replicationSchema.name;
-    }
-
-    public String getReplicantDBUserName() { return replicationSchema.username; }
-
-    @JsonIgnore
-    public String getReplicantDBPassword() {
-        return replicationSchema.password;
-    }
-
-    // =========================================================================
-    // Orchestrator config getters
-    public String getOrchestratorUserName() {
-        return mySQLFailover.orchestrator.username;
-    }
-
-    @JsonIgnore
-    public String getOrchestratorPassword() {
-        return mySQLFailover.orchestrator.password;
-    }
-
-    public String getOrchestratorUrl() {
-        return mySQLFailover.orchestrator.url;
-    }
-
-    public MySQLFailover getMySQLFailover() {
-        return  mySQLFailover;
-    }
-
-    // =========================================================================
-    // Binlog file names and position getters
-    public String getStartingBinlogFileName() {
-        return startingBinlogFileName;
-    }
-
-    public String getLastBinlogFileName() {
-        return endingBinlogFileName;
-    }
-
-    public long getStartingBinlogPosition() {
-        return startingBinlogPosition;
-    }
-
-    // =========================================================================
-    // Applier type
-    public String getApplierType() {
-        return applierType;
-    }
-
-
-    // ========================================================================
-    // Metadata store config getters
-    public String getActiveSchemaDSN() {
-        return String.format("jdbc:mysql://%s/%s", metadataStore.host, metadataStore.database);
-    }
-
-    public String getActiveSchemaHost() {
-        return metadataStore.host;
-    }
-
-    public String getActiveSchemaUserName() {
-        return metadataStore.username;
-    }
-
-    @JsonIgnore
-    public String getActiveSchemaPassword() {
-        return metadataStore.password;
-    }
-
-    public String getActiveSchemaDB() {
-        return metadataStore.database;
-    }
-
-    public String getpGTIDPattern() {
-        return mySQLFailover.pgtid.p_gtid_pattern;
-    }
-
-
-    public String getpGTIDPrefix() {
-        return mySQLFailover.pgtid.p_gtid_prefix;
-    }
-
-    /**
-     * Get initial snapshot mode flag.
-     */
-    public boolean isInitialSnapshotMode() {
-        return initialSnapshotMode;
-    }
-
-    /**
-     * HBase configuration getters.
-     */
-    public String getHbaseNamespace() {
-        if (hbaseConfiguration != null) {
-            return hbaseConfiguration.namespace;
-        } else {
-            return null;
-        }
-    }
-
-    public Boolean isWriteRecentChangesToDeltaTables() {
-        if (hbaseConfiguration != null) {
-            return hbaseConfiguration.writeRecentChangesToDeltaTables;
-        } else {
-            return null;
-        }
-    }
-
-    public List<String> getTablesForWhichToTrackDailyChanges() {
-        if (hbaseConfiguration != null) {
-            return hbaseConfiguration.hive_imports.tables;
-        } else {
-            return null;
-        }
-    }
-
-    public String getHBaseQuorum() {
-        if (hbaseConfiguration != null) {
-            return Joiner.on(",").join(hbaseConfiguration.zookeeper_quorum);
-        } else {
-            return null;
-        }
-    }
-
-    public boolean isDryRunMode() {
-        return dryRunMode;
-    }
-
 
 }

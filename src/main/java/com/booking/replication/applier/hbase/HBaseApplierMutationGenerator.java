@@ -1,6 +1,9 @@
 package com.booking.replication.applier.hbase;
 
 import com.booking.replication.augmenter.AugmentedRow;
+import com.booking.replication.configuration.HBaseConfiguration;
+import com.booking.replication.configuration.MainConfiguration;
+import com.booking.replication.configuration.ValidationConfiguration;
 import com.booking.replication.schema.TableNameMapper;
 
 import com.google.common.base.Joiner;
@@ -54,13 +57,13 @@ public class HBaseApplierMutationGenerator {
 
         public String getTargetRowUri() {
 
-            if (configuration.getValidationConfiguration() == null) return null;
+            if (validationConfiguration == null) return null;
 
             // TODO: make URI generation in a right way
 
             try {
 
-                String dataSource = configuration.getValidationConfiguration().getTargetDomain();
+                String dataSource = validationConfiguration.getTargetDomain();
 
                 String row = URLEncoder.encode(Bytes.toStringBinary(put.getRow()),"UTF-8");
 
@@ -86,13 +89,17 @@ public class HBaseApplierMutationGenerator {
     private static final byte[] CF                           = Bytes.toBytes("d");
     private static final String DIGEST_ALGORITHM             = "MD5";
 
-    private final com.booking.replication.Configuration configuration;
+    private final MainConfiguration mainConfiguration;
+    private final HBaseConfiguration hBaseConfiguration;
+    private final ValidationConfiguration validationConfiguration;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(HBaseApplierMutationGenerator.class);
 
     // Constructor
-    public HBaseApplierMutationGenerator(com.booking.replication.Configuration configuration) {
-        this.configuration = configuration;
+    public HBaseApplierMutationGenerator(MainConfiguration mainConfiguration, HBaseConfiguration hBaseConfiguration, ValidationConfiguration validationConfiguration) {
+        this.mainConfiguration = mainConfiguration;
+        this.hBaseConfiguration = hBaseConfiguration;
+        this.validationConfiguration = validationConfiguration;
     }
 
     /**
@@ -103,9 +110,9 @@ public class HBaseApplierMutationGenerator {
      */
     public List<PutMutation> generateMutations(List<AugmentedRow> augmentedRows) {
 
-        Set<String> tablesForDelta = configuration.getTablesForWhichToTrackDailyChanges().stream().collect(Collectors.toSet());
+        Set<String> tablesForDelta = hBaseConfiguration.getHiveImports().getTables().stream().collect(Collectors.toSet());
 
-        boolean writeDelta = configuration.isWriteRecentChangesToDeltaTables();
+        boolean writeDelta = hBaseConfiguration.isWriteRecentChangesToDeltaTables();
 
         return augmentedRows.stream()
                 .flatMap(
@@ -122,7 +129,7 @@ public class HBaseApplierMutationGenerator {
         String hbaseRowID = getHBaseRowKey(row);
 
         String hbaseTableName =
-                configuration.getHbaseNamespace() + ":" + row.getTableName().toLowerCase();
+                hBaseConfiguration.getNamespace() + ":" + row.getTableName().toLowerCase();
 
         Put put = new Put(Bytes.toBytes(hbaseRowID));
 
@@ -228,11 +235,11 @@ public class HBaseApplierMutationGenerator {
         // String  replicantSchema   = configuration.getReplicantSchemaName().toLowerCase();
         String  mySQLTableName    = row.getTableName();
         Long    timestampMicroSec = row.getEventV4Header().getTimestamp();
-        boolean isInitialSnapshot = configuration.isInitialSnapshotMode();
+        boolean isInitialSnapshot = mainConfiguration.isInitialSnapshotMode();
 
         String deltaTableName = TableNameMapper.getCurrentDeltaTableName(
                 timestampMicroSec,
-                configuration.getHbaseNamespace(),
+                hBaseConfiguration.getNamespace(),
                 mySQLTableName,
                 isInitialSnapshot
         );
@@ -317,7 +324,7 @@ public class HBaseApplierMutationGenerator {
 
     private String getRowUri(AugmentedRow row){
 
-        if (configuration.getValidationConfiguration() == null) return null;
+        if (validationConfiguration == null) return null;
 
         // TODO: generate URI in a better way
 
@@ -343,7 +350,7 @@ public class HBaseApplierMutationGenerator {
                 } )
                 .collect(Collectors.joining("&"));
 
-        return String.format("mysql://%s/%s?%s", configuration.getValidationConfiguration().getSourceDomain(), table, keys  );
+        return String.format("mysql://%s/%s?%s", validationConfiguration.getSourceDomain(), table, keys  );
     }
 
     private static String getHBaseRowKey(AugmentedRow row) {

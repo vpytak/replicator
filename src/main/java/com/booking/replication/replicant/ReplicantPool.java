@@ -2,6 +2,7 @@ package com.booking.replication.replicant;
 
 import com.booking.replication.Configuration;
 
+import com.booking.replication.configuration.ReplicationSchemaConfiguration;
 import org.apache.commons.dbcp2.BasicDataSource;
 
 import org.slf4j.Logger;
@@ -20,16 +21,16 @@ import java.util.List;
 public class ReplicantPool {
 
     private final List<String>        replicantPool;
-    private final Configuration       configuration;
+    private final ReplicationSchemaConfiguration replicationSchemaConfiguration;
     private final ReplicantActiveHost activeHost;
 
     private static final String GET_SERVER_ID = "SELECT @@server_id";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ReplicantPool.class);
 
-    public ReplicantPool(List<String> replicantPool, Configuration configuration) throws Exception {
+    public ReplicantPool(List<String> replicantPool, ReplicationSchemaConfiguration replicationSchemaConfiguration) throws Exception {
         this.replicantPool = replicantPool;
-        this.configuration = configuration;
+        this.replicationSchemaConfiguration = replicationSchemaConfiguration;
 
         // We set the active host in the pool constructor. That means that the pool list is usable only
         // during startup. Once the active replicant is set, if mysql fails, replicator will not
@@ -89,14 +90,14 @@ public class ReplicantPool {
         replicantDataSource.setDriverClassName("com.mysql.jdbc.Driver");
 
         String replicantDSN =
-            String.format("jdbc:mysql://%s/%s", host, configuration.getReplicantSchemaName());
+            String.format("jdbc:mysql://%s/%s", host, replicationSchemaConfiguration.getName());
 
         replicantDataSource.setUrl(replicantDSN);
 
         replicantDataSource.addConnectionProperty("useUnicode", "true");
         replicantDataSource.addConnectionProperty("characterEncoding", "UTF-8");
-        replicantDataSource.setUsername(configuration.getReplicantDBUserName());
-        replicantDataSource.setPassword(configuration.getReplicantDBPassword());
+        replicantDataSource.setUsername(replicationSchemaConfiguration.getUsername());
+        replicantDataSource.setPassword(replicationSchemaConfiguration.getPassword());
 
         java.sql.Connection con = replicantDataSource.getConnection();
 

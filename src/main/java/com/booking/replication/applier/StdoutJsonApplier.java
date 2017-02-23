@@ -35,7 +35,7 @@ public class StdoutJsonApplier implements Applier  {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(StdoutJsonApplier.class);
 
-    public StdoutJsonApplier(Configuration configuration) {}
+    public StdoutJsonApplier() {}
 
     @Override
     public void applyXidEvent(XidEvent event) {

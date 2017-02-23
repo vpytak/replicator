@@ -41,8 +41,8 @@ public class TableNameMapper {
         return "delta:" + replicantNamespace.toLowerCase() + "_" + mysqlTableName.toLowerCase() + "_" + suffix;
     }
 
-    public static String getSchemaHistoryHBaseTableName(Configuration configuration) {
-        return "schema_history:" + configuration.getHbaseNamespace();
+    public static String getSchemaHistoryHBaseTableName(String namespace) {
+        return "schema_history:" + namespace;
     }
 
 }

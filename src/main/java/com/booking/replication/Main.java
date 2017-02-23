@@ -1,6 +1,6 @@
 package com.booking.replication;
 
-import com.booking.replication.configuration.MetadataStoreConfiguration;
+import com.booking.replication.configuration.*;
 import com.booking.replication.coordinator.CoordinatorFactory;
 import com.booking.replication.coordinator.CoordinatorInterface;
 import com.booking.replication.coordinator.FileCoordinator;
@@ -54,7 +54,16 @@ public class Main {
                 e.printStackTrace();
             }
 
-            CoordinatorInterface coordinator = CoordinatorFactory.getCoordinator(configuration.getMetadataStoreConfiguration());
+            final MainConfiguration mainConfiguration = configuration.getMainConfiguration();
+            final MySQLFailoverConfiguration mySQLFailoverConfiguration = configuration.getMySQLFailoverConfiguration();
+            final ReplicationSchemaConfiguration replicationSchemaConfiguration = configuration.getReplicationSchemaConfiguration();
+            final HBaseConfiguration hBaseConfiguration = configuration.getHBaseConfiguration();
+            final MetadataStoreConfiguration metadataStoreConfiguration = configuration.getMetadataStoreConfiguration();
+            final KafkaConfiguration kafkaConfiguration = configuration.getKafkaConfiguration();
+            final ValidationConfiguration validationConfiguration = configuration.getValidationConfiguration();
+            final MetricsConfiguration metricsConfiguration = configuration.getMetricsConfiguration();
+
+            CoordinatorInterface coordinator = CoordinatorFactory.getCoordinator(metadataStoreConfiguration);
             Coordinator.setImplementation(coordinator);
 
             ReplicatorHealthTrackerProxy healthTracker = new ReplicatorHealthTrackerProxy();
@@ -65,8 +74,17 @@ public class Main {
                     @Override
                     public void run() {
                         try {
-                            Metrics.startReporters(configuration.getMetricsConfiguration());
-                            new Replicator(configuration, healthTracker, Metrics.registry.counter(name("events", "applierEventsObserved"))).start();
+                            Metrics.startReporters(metricsConfiguration);
+                            new Replicator(mainConfiguration,
+                                    mySQLFailoverConfiguration,
+                                    replicationSchemaConfiguration,
+                                    hBaseConfiguration,
+                                    metadataStoreConfiguration,
+                                    kafkaConfiguration,
+                                    validationConfiguration,
+                                    healthTracker,
+                                    Metrics.registry.counter(name("events", "applierEventsObserved"))
+                            ).start();
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
