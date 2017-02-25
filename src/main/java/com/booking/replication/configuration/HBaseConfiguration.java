@@ -14,7 +14,7 @@ public class HBaseConfiguration {
     private ZookeeperConfiguration zookeeperConfiguration;
     private boolean      writeRecentChangesToDeltaTables;
     private HiveImportsConfiguration hiveImports;
-    boolean isDryRunMode;
+    private boolean isDryRunMode;
 
     public HBaseConfiguration(String namespace, ZookeeperConfiguration zookeeperConfiguration, boolean writeRecentChangesToDeltaTables, HiveImportsConfiguration hiveImports, boolean isDryRunMode) throws ConfigurationException {
         this.namespace = namespace;

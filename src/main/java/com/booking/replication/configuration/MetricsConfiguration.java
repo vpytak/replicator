@@ -11,10 +11,8 @@ import java.util.HashMap;
  * Created by edmitriev on 2/15/17.
  */
 public class MetricsConfiguration {
-
-
-    public Duration frequency;
-    public HashMap<String, MetricsReporterConfiguration> reporters;
+    private Duration frequency;
+    private HashMap<String, MetricsReporterConfiguration> reporters;
 
     public MetricsConfiguration(Duration frequency, HashMap<String, MetricsReporterConfiguration> reporters) throws ConfigurationException {
         this.frequency = frequency;

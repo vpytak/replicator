@@ -1,7 +1,9 @@
 package com.booking.replication.monitor;
 
+import com.booking.replication.Replicator;
 import com.codahale.metrics.Counting;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Able of making health assessments for the Replicator
@@ -29,25 +31,18 @@ public class ReplicatorDoctor implements IReplicatorDoctor {
             Logger logger,
             Counting interestingEventsObservedCounter)
     {
-        if (eventsPushedToWorldCounter == null)
-        {
-            throw new IllegalArgumentException("eventsPushedToWorldCounter must be not null");
-        }
-
-        if (interestingEventsObservedCounter == null)
-        {
-            throw new IllegalArgumentException("interestingEventsObservedCounter must be not null");
-        }
-
-        if (logger == null)
-        {
-            throw new IllegalArgumentException("logger must be not null");
-        }
+        if (eventsPushedToWorldCounter == null) throw new IllegalArgumentException("eventsPushedToWorldCounter must be not null");
+        if (interestingEventsObservedCounter == null) throw new IllegalArgumentException("interestingEventsObservedCounter must be not null");
+        if (logger == null) throw new IllegalArgumentException("logger must be not null");
 
         this.counterDescription = counterDescription;
         this.globallyImpactingEventsCounter = eventsPushedToWorldCounter;
         this.logger = logger;
         this.numberOfInterestingEventsObserved = interestingEventsObservedCounter;
+    }
+
+    public ReplicatorDoctor(Counting eventsPushedToWorldCounter, String counterDescription, Counting interestingEventsObservedCounter) {
+        this(eventsPushedToWorldCounter, counterDescription, LoggerFactory.getLogger(ReplicatorDoctor.class), interestingEventsObservedCounter);
     }
 
     public ReplicatorHealthAssessment makeHealthAssessment() {

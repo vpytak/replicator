@@ -6,7 +6,7 @@ import java.util.List;
  * Created by edmitriev on 2/15/17.
  */
 public class KafkaConfiguration {
-    boolean isDryRunMode;
+    private boolean isDryRunMode;
     private String broker;
     private List<String> tables;
     private List<String> excludeTables;

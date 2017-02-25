@@ -7,7 +7,7 @@ import java.util.List;
  * Created by edmitriev on 2/22/17.
  */
 public class HiveImportsConfiguration {
-        public List<String> tables = Collections.emptyList();
+        private List<String> tables = Collections.emptyList();
 
         /**
          * getTablesForWhichToTrackDailyChanges
