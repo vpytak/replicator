@@ -145,7 +145,7 @@ public class PipelineOrchestrator extends Thread {
         activeSchemaVersion =  new ActiveSchemaVersion(metadataStoreConfiguration);
         eventAugmenter = new EventAugmenter(activeSchemaVersion);
         currentTransactionMetadata = new CurrentTransactionMetadata();
-        queryInspector = new QueryInspector(mySQLFailoverConfiguration.getpGTIDPattern());
+        queryInspector = new QueryInspector(mySQLFailoverConfiguration.getPgtid().getPattern());
 
         LOGGER.info("Created consumer with binlog position => { "
                 + " binlogFileName => " + pipelinePosition.getCurrentPosition().getBinlogFilename()

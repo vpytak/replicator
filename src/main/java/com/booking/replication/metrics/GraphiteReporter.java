@@ -1,10 +1,7 @@
 package com.booking.replication.metrics;
 
-import com.booking.replication.Configuration;
 import com.booking.replication.configuration.MetricsReporterConfiguration;
 import com.booking.replication.util.Duration;
-
-import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.graphite.Graphite;
 
 import java.net.InetSocketAddress;

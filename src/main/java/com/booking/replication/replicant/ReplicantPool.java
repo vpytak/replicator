@@ -1,7 +1,5 @@
 package com.booking.replication.replicant;
 
-import com.booking.replication.Configuration;
-
 import com.booking.replication.configuration.ReplicationSchemaConfiguration;
 import org.apache.commons.dbcp2.BasicDataSource;
 

@@ -279,7 +279,7 @@ public class Replicator {
                 3306,
                 replicationSchemaConfiguration.getUsername(),
                 replicationSchemaConfiguration.getPassword(),
-                new QueryInspector(mySQLFailoverConfiguration.getpGTIDPattern()));
+                new QueryInspector(mySQLFailoverConfiguration.getPgtid().getPattern()));
 
         BinlogCoordinatesFinder.BinlogCoordinates coordinates = coordinatesFinder.findCoordinates(pseudoGTID);
 

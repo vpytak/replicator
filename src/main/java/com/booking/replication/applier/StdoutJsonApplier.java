@@ -1,6 +1,5 @@
 package com.booking.replication.applier;
 
-import com.booking.replication.Configuration;
 import com.booking.replication.augmenter.AugmentedRow;
 import com.booking.replication.augmenter.AugmentedRowsEvent;
 import com.booking.replication.augmenter.AugmentedSchemaChangeEvent;

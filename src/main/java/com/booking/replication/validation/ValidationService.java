@@ -1,6 +1,5 @@
 package com.booking.replication.validation;
 
-import com.booking.replication.Configuration;
 import com.booking.replication.configuration.ValidationConfiguration;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;

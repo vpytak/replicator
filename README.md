@@ -53,7 +53,7 @@ replication_schema:
     name:      'replicated_schema_name'
     username:  'user'
     password:  'pass'
-    hostPool: ['localhost']
+    host_pool: ['localhost']
 
 metadata_store:
     username: 'user'
@@ -77,7 +77,7 @@ kafka:
     excludetables: ["exlude_pattern_1",..., "exclude_pattern_N"]
 hbase:
     namespace: 'schema_namespace'
-    zookeeperQuorum:  ['hbase-zk1-host', 'hbase-zkN-host']
+    zookeeper_quorum:  ['hbase-zk1-host', 'hbase-zkN-host']
     hive_imports:
         tables: ['sometable']
 

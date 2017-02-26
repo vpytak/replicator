@@ -3,7 +3,6 @@ package com.booking.replication;
 import static com.codahale.metrics.MetricRegistry.name;
 
 import com.booking.replication.configuration.MetricsConfiguration;
-import com.booking.replication.metrics.GraphiteReporter;
 
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.jvm.ClassLoadingGaugeSet;

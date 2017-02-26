@@ -1,40 +1,40 @@
 package com.booking.replication.applier;
 
 import com.booking.replication.augmenter.AugmentedRowsEvent;
+
 import com.booking.replication.augmenter.AugmentedSchemaChangeEvent;
 import com.booking.replication.pipeline.PipelineOrchestrator;
-import com.codahale.metrics.Counter;
 import com.google.code.or.binlog.BinlogEventV4;
 import com.google.code.or.binlog.impl.event.*;
 
+import com.codahale.metrics.Counter;
+
 import java.io.IOException;
 
-/**
- * Wraps an applier to count incoming events
- */
 public class EventCountingApplier implements Applier {
 
     private final Applier wrapped;
     private final Counter counter;
 
-    public EventCountingApplier(Applier wrapped, Counter counter)
-        {
-            if (wrapped == null)
-            {
-                throw new IllegalArgumentException("wrapped must not be null");
-            }
-
-            if (counter == null)
-            {
-                throw new IllegalArgumentException("counter must not be null");
-            }
-
-            this.wrapped = wrapped;
-            this.counter = counter;
+    /**
+     * Wraps an applier to count incoming events.
+     */
+    public EventCountingApplier(Applier wrapped, Counter counter) {
+        if (wrapped == null) {
+            throw new IllegalArgumentException("wrapped must not be null");
         }
 
+        if (counter == null) {
+            throw new IllegalArgumentException("counter must not be null");
+        }
+
+        this.wrapped = wrapped;
+        this.counter = counter;
+    }
+
     @Override
-    public void applyAugmentedRowsEvent(AugmentedRowsEvent augmentedSingleRowEvent, PipelineOrchestrator caller) throws ApplierException, IOException {
+    public void applyAugmentedRowsEvent(AugmentedRowsEvent augmentedSingleRowEvent, PipelineOrchestrator caller)
+            throws ApplierException, IOException {
         wrapped.applyAugmentedRowsEvent(augmentedSingleRowEvent, caller);
         counter.inc();
     }

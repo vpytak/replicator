@@ -157,7 +157,11 @@ public class HBaseApplierWriter {
      * <p>The writer manages the worker pool and task status.</p>
      *
      * @param poolSize Size of the worker pool
-     * @param configuration Replication configuration object
+     * @param mainConfiguration Replication main configuration object
+     * @param hBaseConfiguration HBase configuration object
+     * @param validationConfiguration Validation configuration object
+     * @param tasksSucceededCounter Counter
+     * @param validationService Instance of validator
      */
     public HBaseApplierWriter(
             int poolSize,

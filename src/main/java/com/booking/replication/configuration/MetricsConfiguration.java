@@ -1,6 +1,5 @@
 package com.booking.replication.configuration;
 
-import com.booking.replication.Configuration;
 import com.booking.replication.metrics.GraphiteReporter;
 import com.booking.replication.util.Duration;
 

@@ -8,4 +8,12 @@ import java.io.Serializable;
 public class PseudoGTIDConfiguration implements Serializable  {
     public String p_gtid_pattern;
     public String p_gtid_prefix;
+
+    public String getPattern() {
+        return p_gtid_pattern;
+    }
+
+    public String getPrefix() {
+        return p_gtid_prefix;
+    }
 }

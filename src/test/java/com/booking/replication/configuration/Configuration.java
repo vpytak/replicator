@@ -68,8 +68,8 @@ public class Configuration {
     @Test
     public void mySQLFailoverConfiguration() throws ConfigurationException {
         MySQLFailoverConfiguration mySQLFailoverConfiguration = configuration.getMySQLFailoverConfiguration();
-        assertEquals("(?<=_pseudo_gtid_hint__asc\\:)(.{8}\\:.{16}\\:.{8})", mySQLFailoverConfiguration.getpGTIDPattern());
-        assertEquals("use `booking_meta`; ", mySQLFailoverConfiguration.getpGTIDPrefix());
+        assertEquals("(?<=_pseudo_gtid_hint__asc\\:)(.{8}\\:.{16}\\:.{8})", mySQLFailoverConfiguration.getPgtid().getPattern());
+        assertEquals("use `booking_meta`; ", mySQLFailoverConfiguration.getPgtid().getPrefix());
         assertTrue(mySQLFailoverConfiguration == configuration.getMySQLFailoverConfiguration());
     }
 

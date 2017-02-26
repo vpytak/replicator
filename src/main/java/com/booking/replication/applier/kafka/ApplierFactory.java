@@ -1,6 +1,5 @@
 package com.booking.replication.applier.kafka;
 
-import com.booking.replication.Metrics;
 import com.booking.replication.applier.*;
 import com.booking.replication.configuration.*;
 import com.booking.replication.validation.ValidationService;
@@ -10,7 +9,6 @@ import com.codahale.metrics.Meter;
 
 import java.io.IOException;
 
-import static com.codahale.metrics.MetricRegistry.name;
 
 /**
  * Created by edmitriev on 2/24/17.

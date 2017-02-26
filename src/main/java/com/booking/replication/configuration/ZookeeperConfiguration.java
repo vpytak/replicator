@@ -12,7 +12,8 @@ public class ZookeeperConfiguration {
     private List<String> quorum;
     private String path;
 
-    public ZookeeperConfiguration(){
+    public ZookeeperConfiguration() {
+        // holder for serializer
     }
 
     public ZookeeperConfiguration(List<String> quorum, String path) throws ConfigurationException {

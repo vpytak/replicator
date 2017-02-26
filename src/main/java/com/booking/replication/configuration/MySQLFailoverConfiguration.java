@@ -23,15 +23,6 @@ public class MySQLFailoverConfiguration {
         return orchestrator;
     }
 
-    public String getpGTIDPattern() {
-        return pgtid.p_gtid_pattern;
-    }
-
-
-    public String getpGTIDPrefix() {
-        return pgtid.p_gtid_prefix;
-    }
-
     public String getOrchestratorUserName() {
         return orchestrator.username;
     }

@@ -2,7 +2,6 @@ package com.booking.replication.pipeline;
 
 import static com.codahale.metrics.MetricRegistry.name;
 
-import com.booking.replication.Configuration;
 import com.booking.replication.Constants;
 import com.booking.replication.Metrics;
 import com.booking.replication.configuration.ReplicationSchemaConfiguration;

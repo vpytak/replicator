@@ -1,6 +1,5 @@
 package com.booking.replication.schema;
 
-import com.booking.replication.Configuration;
 import com.booking.replication.augmenter.AugmentedSchemaChangeEvent;
 import com.booking.replication.configuration.MetadataStoreConfiguration;
 import com.booking.replication.schema.column.ColumnSchema;

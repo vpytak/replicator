@@ -1,6 +1,5 @@
 package com.booking.replication.coordinator;
 
-import com.booking.replication.Configuration;
 import com.booking.replication.checkpoints.LastCommittedPositionCheckpoint;
 import com.booking.replication.checkpoints.SafeCheckPoint;
 

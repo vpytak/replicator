@@ -1,7 +1,5 @@
 package com.booking.replication.configuration;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import javax.naming.ConfigurationException;
 
 /**

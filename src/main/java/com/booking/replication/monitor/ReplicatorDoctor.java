@@ -1,6 +1,5 @@
 package com.booking.replication.monitor;
 
-import com.booking.replication.Replicator;
 import com.codahale.metrics.Counting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
