@@ -55,7 +55,6 @@ public class MetadataStoreConfiguration {
         return username;
     }
 
-    @JsonIgnore
     public String getActiveSchemaPassword() {
         return password;
     }

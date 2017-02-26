@@ -20,8 +20,6 @@ public class StartupParameters {
     private String  hbaseNamespace;
     private boolean dryrun;
 
-    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(StartupParameters.class);
-
     public StartupParameters(OptionSet optionSet) {
 
         // use delta tables
@@ -57,20 +55,6 @@ public class StartupParameters {
 
         // Last binlog filename
         lastBinlogFileName = (String) optionSet.valueOf("last-binlog-filename");
-
-        System.out.println("----------------------------------------------");
-        System.out.println("Parsed params:           ");
-        System.out.println("\tconfig-path:           " + configPath);
-        System.out.println("\tschema:                " + schema);
-        System.out.println("\tapplier:               " + applier);
-        System.out.println("\tbinlog-filename:       " + binlogFileName);
-        System.out.println("\tposition:              " + binlogPosition);
-        System.out.println("\tlast-binlog-filename:  " + lastBinlogFileName);
-        System.out.println("\tinitial-snapshot:      " + initialSnapshot);
-        System.out.println("\thbase-namespace:       " + hbaseNamespace);
-        System.out.println("\tdry-run:               " + dryrun);
-        System.out.println("----------------------------------------------\n");
-
     }
 
     public String getConfigPath() {
@@ -111,5 +95,23 @@ public class StartupParameters {
 
     public String getHbaseNamespace() {
         return hbaseNamespace;
+    }
+
+    @Override
+    public String toString() {
+        StringBuffer stringBuffer = new StringBuffer();
+        stringBuffer.append("----------------------------------------------\n");
+        stringBuffer.append("Parsed params:           \n");
+        stringBuffer.append("\tconfig-path:           " + configPath + "\n");
+        stringBuffer.append("\tschema:                " + schema + "\n");
+        stringBuffer.append("\tapplier:               " + applier + "\n");
+        stringBuffer.append("\tbinlog-filename:       " + binlogFileName + "\n");
+        stringBuffer.append("\tposition:              " + binlogPosition + "\n");
+        stringBuffer.append("\tlast-binlog-filename:  " + lastBinlogFileName + "\n");
+        stringBuffer.append("\tinitial-snapshot:      " + initialSnapshot + "\n");
+        stringBuffer.append("\thbase-namespace:       " + hbaseNamespace + "\n");
+        stringBuffer.append("\tdry-run:               " + dryrun + "\n");
+        stringBuffer.append("----------------------------------------------\n");
+        return stringBuffer.toString();
     }
 }

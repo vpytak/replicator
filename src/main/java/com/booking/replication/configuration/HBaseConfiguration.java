@@ -1,10 +1,6 @@
 package com.booking.replication.configuration;
 
-
-import com.google.common.base.Joiner;
-
 import javax.naming.ConfigurationException;
-import java.util.List;
 
 /**
  * Created by edmitriev on 2/22/17.

@@ -36,7 +36,6 @@ public class MySQLFailoverConfiguration {
         return orchestrator.username;
     }
 
-    @JsonIgnore
     public String getOrchestratorPassword() {
         return orchestrator.password;
     }

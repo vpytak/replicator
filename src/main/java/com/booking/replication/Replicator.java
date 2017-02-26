@@ -302,7 +302,7 @@ public class Replicator {
     // start()
     public void start() throws Exception {
 
-        // Shutdown hook
+        // Setup shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread(
                 new Shutdown(binlogEventProducer, pipelineOrchestrator, overseer, healthTracker)));
 

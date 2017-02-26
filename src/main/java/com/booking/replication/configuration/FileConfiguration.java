@@ -4,7 +4,7 @@ package com.booking.replication.configuration;
  * Created by edmitriev on 2/15/17.
  */
 public class FileConfiguration {
-    private String path;
+    public String path;
 
     public FileConfiguration() {
         if (path == null) {

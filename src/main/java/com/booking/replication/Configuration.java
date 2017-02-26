@@ -30,6 +30,7 @@ public class Configuration {
     private String  startingBinlogFileName;
     private String  endingBinlogFileName;
     private String  applierType;
+    @JsonIgnore
     private MainConfiguration mainConfiguration = null;
 
     public MainConfiguration getMainConfiguration() throws ConfigurationException {
@@ -41,15 +42,18 @@ public class Configuration {
     }
 
     private static class ReplicationSchema implements Serializable {
-        private String name;
-        private String username;
-        private String password;
-        private List<String> host_pool;
-        private int port = 3306;
+        public String name;
+        public String username;
+        @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+        public String password;
+        public List<String> host_pool;
+        public int port = 3306;
     }
 
     @JsonDeserialize
+    @JsonProperty("replication_schema")
     private ReplicationSchema replicationSchema;
+    @JsonIgnore
     private ReplicationSchemaConfiguration replicationSchemaConfiguration = null;
 
     public ReplicationSchemaConfiguration getReplicationSchemaConfiguration() throws ConfigurationException {
@@ -65,13 +69,14 @@ public class Configuration {
     @JsonDeserialize
     @JsonProperty("mysql_failover")
     private MySQLFailover mySQLFailover;
+    @JsonIgnore
     private MySQLFailoverConfiguration mySQLFailoverConfiguration = null;
 
     private static class MySQLFailover {
         @JsonDeserialize
-        PseudoGTIDConfiguration pgtid;
+        public PseudoGTIDConfiguration pgtid;
         @JsonDeserialize
-        OrchestratorConfiguration orchestrator;
+        public OrchestratorConfiguration orchestrator;
     }
 
     public MySQLFailoverConfiguration getMySQLFailoverConfiguration() throws ConfigurationException {
@@ -85,14 +90,15 @@ public class Configuration {
     @JsonDeserialize
     @JsonProperty("hbase")
     private HBase hbase;
+    @JsonIgnore
     private HBaseConfiguration hbaseConfiguration = null;
 
     private static class HBase {
-        String       namespace;
-        List<String> zookeeper_quorum;
-        boolean      writeRecentChangesToDeltaTables;
+        public String       namespace;
+        public List<String> zookeeper_quorum;
+        public boolean      writeRecentChangesToDeltaTables;
         @JsonDeserialize
-        HiveImportsConfiguration hive_imports = new HiveImportsConfiguration();
+        public HiveImportsConfiguration hive_imports = new HiveImportsConfiguration();
     }
 
     public HBaseConfiguration getHBaseConfiguration() throws ConfigurationException {
@@ -105,16 +111,19 @@ public class Configuration {
 
 
     @JsonDeserialize
+    @JsonProperty("metadata_store")
     private MetadataStore metadataStore;
+    @JsonIgnore
     private MetadataStoreConfiguration metadataStoreConfiguration = null;
 
     private static class MetadataStore {
-        String       username;
-        String       password;
+        public String       username;
+        @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+        public String       password;
         public String       host;
-        String       database;
+        public String       database;
         @JsonDeserialize
-        ZookeeperConfiguration zookeeper;
+        public ZookeeperConfiguration zookeeper;
         @JsonDeserialize
         public FileConfiguration file;
     }
@@ -135,13 +144,14 @@ public class Configuration {
 
     @JsonDeserialize
     private Kafka kafka;
+    @JsonIgnore
     private KafkaConfiguration kafkaConfiguration;
 
     private static class Kafka {
-        String broker;
-        List<String> tables;
-        List<String> excludetables;
-        String topic;
+        public String broker;
+        public List<String> tables;
+        public List<String> excludetables;
+        public String topic;
     }
 
     public KafkaConfiguration getKafkaConfiguration(){
@@ -153,19 +163,20 @@ public class Configuration {
 
 
     private static class Validation {
-        private String broker;
-        private String topic;
-        private String tag = "general";
+        public String broker;
+        public String topic;
+        public String tag = "general";
         @JsonProperty("source_domain")
-        private String sourceDomain;
+        public String sourceDomain;
         @JsonProperty("target_domain")
-        private String targetDomain;
-        private long throttling = TimeUnit.SECONDS.toMillis(5);;
+        public String targetDomain;
+        public long throttling = TimeUnit.SECONDS.toMillis(5);;
     }
 
     @JsonDeserialize
     @JsonProperty("validation")
     private Validation validation;
+    @JsonIgnore
     private ValidationConfiguration validationConfiguration = null;
 
     public ValidationConfiguration getValidationConfiguration(){
@@ -179,16 +190,17 @@ public class Configuration {
 
 
     public static class Metrics {
-        Duration     frequency;
+        public Duration     frequency;
         @JsonDeserialize
-        HashMap<String, MetricsReporterConfiguration> reporters = new HashMap<>();
+        public HashMap<String, MetricsReporterConfiguration> reporters = new HashMap<>();
     }
 
     @JsonDeserialize()
     public Metrics metrics = new Metrics();
+    @JsonIgnore
     private MetricsConfiguration metricsConfiguration = null;
 
-    MetricsConfiguration getMetricsConfiguration() throws ConfigurationException {
+    public MetricsConfiguration getMetricsConfiguration() throws ConfigurationException {
         if (metrics.frequency == null) metrics.frequency = Duration.parse("10 seconds");
         if (metricsConfiguration == null) {
             metricsConfiguration = new MetricsConfiguration(metrics.frequency, metrics.reporters);
@@ -202,7 +214,7 @@ public class Configuration {
      *
      * @param startupParameters     Startup parameters
      */
-    public void loadStartupParameters(StartupParameters startupParameters ) throws ConfigurationException {
+    public void loadStartupParameters(StartupParameters startupParameters) throws ConfigurationException {
         dryRunMode = startupParameters.isDryrun();
         initialSnapshotMode = startupParameters.isInitialSnapshot();
         startingBinlogFileName = startupParameters.getBinlogFileName();

@@ -3,8 +3,6 @@ package com.booking.replication;
 import com.booking.replication.configuration.*;
 import com.booking.replication.coordinator.CoordinatorFactory;
 import com.booking.replication.coordinator.CoordinatorInterface;
-import com.booking.replication.coordinator.FileCoordinator;
-import com.booking.replication.coordinator.ZookeeperCoordinator;
 import com.booking.replication.monitor.IReplicatorHealthTracker;
 import com.booking.replication.monitor.ReplicatorHealthAssessment;
 import com.booking.replication.monitor.ReplicatorHealthTrackerProxy;
@@ -32,6 +30,7 @@ public class Main {
         OptionSet optionSet = Cmd.parseArgs(args);
 
         StartupParameters startupParameters = new StartupParameters(optionSet);
+        LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME).info(startupParameters.toString());
 
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         String  configPath = startupParameters.getConfigPath();

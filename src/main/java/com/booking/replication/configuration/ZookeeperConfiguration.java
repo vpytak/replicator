@@ -12,8 +12,13 @@ public class ZookeeperConfiguration {
     private List<String> quorum;
     private String path;
 
+    public ZookeeperConfiguration(){
+    }
+
     public ZookeeperConfiguration(List<String> quorum, String path) throws ConfigurationException {
         if (quorum == null) throw new ConfigurationException("Metadata store set as zookeeper but no zookeeper quorum is specified");
+        this.quorum = quorum;
+        this.path = path;
     }
 
     public List<String> getQuorum() {

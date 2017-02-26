@@ -37,7 +37,6 @@ public class ReplicationSchemaConfiguration implements Serializable{
         return username;
     }
 
-    @JsonIgnore
     public String getPassword() {
         return password;
     }
