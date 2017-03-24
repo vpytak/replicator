@@ -23,6 +23,7 @@ import static spark.Spark.*;
 
 public class Main {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
     /**
      * Main.
      */
@@ -30,7 +31,7 @@ public class Main {
         OptionSet optionSet = Cmd.parseArgs(args);
 
         StartupParameters startupParameters = new StartupParameters(optionSet);
-        LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME).info(startupParameters.toString());
+        LOGGER.info(startupParameters.toString());
 
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         String  configPath = startupParameters.getConfigPath();
@@ -46,12 +47,7 @@ public class Main {
             }
 
             configuration.loadStartupParameters(startupParameters);
-
-            try {
-                System.out.println("loaded configuration: \n" + configuration.toString());
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            LOGGER.info("loaded configuration: \n" + configuration.toString());
 
             final MainConfiguration mainConfiguration = configuration.getMainConfiguration();
             final MySQLFailoverConfiguration mySQLFailoverConfiguration = configuration.getMySQLFailoverConfiguration();
@@ -92,7 +88,7 @@ public class Main {
             );
 
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error("Fatal exception occurred: ", e);
         }
     }
 
@@ -126,7 +122,7 @@ public class Main {
 
                         String errorMessage = "Failed to assess the health status of the Replicator";
 
-                        LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME).warn(errorMessage, e);
+                        LOGGER.warn(errorMessage, e);
 
                         return errorMessage;
                     }
