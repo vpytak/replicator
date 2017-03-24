@@ -79,7 +79,7 @@ public class BinlogEventProducer {
         int serverId = (random.nextInt() >>> 1) | (1 << 30); // a large positive random integer
 
         // config
-        openReplicator.setUser(replicationSchemaConfiguration.getName());
+        openReplicator.setUser(replicationSchemaConfiguration.getUsername());
         openReplicator.setPassword(replicationSchemaConfiguration.getPassword());
         openReplicator.setPort(replicationSchemaConfiguration.getPort());
 
