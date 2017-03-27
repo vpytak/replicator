@@ -1,6 +1,5 @@
 package com.booking.replication.configuration;
 
-import com.booking.replication.metrics.GraphiteReporter;
 import com.booking.replication.util.Duration;
 
 import javax.naming.ConfigurationException;
@@ -16,19 +15,6 @@ public class MetricsConfiguration {
     public MetricsConfiguration(Duration frequency, HashMap<String, MetricsReporterConfiguration> reporters) throws ConfigurationException {
         this.frequency = frequency;
         this.reporters = reporters;
-        for (String reporterName : reporters.keySet()) {
-            MetricsReporterConfiguration reporter = reporters.get(reporterName);
-            switch (reporterName) {
-                case "graphite":
-                    reporter.implementation = new GraphiteReporter(frequency, reporter);
-                    break;
-                case "console":
-                    reporter.implementation = new com.booking.replication.metrics.ConsoleReporter(frequency);
-                    break;
-                default:
-                    throw new ConfigurationException("No implementation found for reporter type: " + reporterName);
-            }
-        }
     }
 
     public Duration getFrequency() {

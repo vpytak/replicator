@@ -1,7 +1,6 @@
 package com.booking.replication;
 
 import com.booking.replication.applier.*;
-import com.booking.replication.applier.kafka.ApplierFactory;
 import com.booking.replication.checkpoints.LastCommittedPositionCheckpoint;
 import com.booking.replication.configuration.*;
 import com.booking.replication.metrics.MainProgressCounter;
@@ -17,6 +16,7 @@ import com.booking.replication.sql.QueryInspector;
 import com.booking.replication.util.BinlogCoordinatesFinder;
 import com.booking.replication.validation.ValidationService;
 import com.codahale.metrics.Counter;
+import com.codahale.metrics.Meter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,7 +81,7 @@ public class Replicator {
 
         ValidationService validationService = ValidationService.getInstance(validationConfiguration);
 
-        MainProgressCounter mainProgressCounter = MainProgressCounter.getInstance(mainConfiguration.getApplierType());
+        MainProgressCounter mainProgressCounter = new MainProgressCounter(mainConfiguration.getApplierType());
 
         healthTracker.setTrackerImplementation(getReplicatorHealthTracker(interestingEventsObservedCounter, mainProgressCounter));
 
@@ -109,12 +109,12 @@ public class Replicator {
     private Applier getApplier(MainConfiguration mainConfiguration, ReplicationSchemaConfiguration replicationSchemaConfiguration, HBaseConfiguration hBaseConfiguration, KafkaConfiguration kafkaConfiguration, ValidationConfiguration validationConfiguration, ValidationService validationService, MainProgressCounter mainProgressCounter) throws IOException {
         switch (mainConfiguration.getApplierType()) {
             case "STDOUT":
-                return ApplierFactory.getApplier();
+                return new StdoutJsonApplier();
             case "hbase":
-                return ApplierFactory.getApplier(mainConfiguration, hBaseConfiguration, replicationSchemaConfiguration, validationConfiguration,
-                        mainProgressCounter.getCounter(), validationService);
+                return new HBaseApplier(mainConfiguration, hBaseConfiguration, replicationSchemaConfiguration, validationConfiguration,
+                        (Counter) mainProgressCounter.getCounter(), validationService);
             case "kafka":
-                return ApplierFactory.getApplier(kafkaConfiguration, mainProgressCounter.getCounter());
+                return new KafkaApplier(kafkaConfiguration, (Meter) mainProgressCounter.getCounter());
             default:
                 throw new RuntimeException(String.format("Unknown applier: %s", mainConfiguration.getApplierType()));
         }

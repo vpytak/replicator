@@ -2,6 +2,7 @@ package com.booking.replication.metrics;
 
 import com.booking.replication.Metrics;
 import com.codahale.metrics.Counting;
+import com.codahale.metrics.Meter;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -14,18 +15,8 @@ import static com.codahale.metrics.MetricRegistry.name;
 public class MainProgressCounter {
     private Counting counter;
     private String description;
-    private static Map<String, MainProgressCounter> instances = new HashMap<>();
 
-    public static MainProgressCounter getInstance(String type) {
-        MainProgressCounter instance = instances.get(type);
-        if (instance == null) {
-            instance = new MainProgressCounter(type);
-            instances.put(type, instance);
-        }
-        return instance;
-    }
-
-    private MainProgressCounter(String type) {
+    public MainProgressCounter(String type) {
         switch (type) {
             case "hbase":
                 counter = Metrics.registry.counter(name("HBase", "applierTasksSucceededCounter"));

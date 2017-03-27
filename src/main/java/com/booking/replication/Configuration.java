@@ -10,6 +10,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.naming.ConfigurationException;
 import java.io.Serializable;
@@ -23,6 +25,8 @@ import java.util.concurrent.TimeUnit;
  * <p>This object is instantiated by deserializing from a yaml config file.</p>
  */
 public class Configuration {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(Configuration.class);
 
     private boolean initialSnapshotMode;
     private boolean dryRunMode;
@@ -240,7 +244,7 @@ public class Configuration {
         try {
             return new ObjectMapper(new YAMLFactory()).writeValueAsString(this);
         } catch (JsonProcessingException e) {
-            e.printStackTrace();
+            LOGGER.warn("Can't serialize configuration: ", e);
         }
         return "";
     }
