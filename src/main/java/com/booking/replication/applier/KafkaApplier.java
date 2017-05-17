@@ -9,6 +9,8 @@ import com.booking.replication.applier.kafka.RowListMessage;
 import com.booking.replication.augmenter.AugmentedRow;
 import com.booking.replication.augmenter.AugmentedRowsEvent;
 import com.booking.replication.augmenter.AugmentedSchemaChangeEvent;
+//<<<<<<< HEAD
+import com.booking.replication.binlog.event.*;
 import com.booking.replication.pipeline.CurrentTransaction;
 import com.booking.replication.pipeline.PipelineOrchestrator;
 
@@ -21,6 +23,14 @@ import com.google.code.or.binlog.impl.event.RotateEvent;
 import com.google.code.or.binlog.impl.event.TableMapEvent;
 import com.google.code.or.binlog.impl.event.XidEvent;
 
+//=======
+//import com.booking.replication.binlog.event.RawBinlogEventFormatDescription;
+//import com.booking.replication.binlog.event.RawBinlogEventRotate;
+//import com.booking.replication.binlog.event.RawBinlogEventTableMap;
+//import com.booking.replication.binlog.event.RawBinlogEventXid;
+//import com.booking.replication.pipeline.PipelineOrchestrator;
+
+//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
@@ -170,7 +180,7 @@ public class KafkaApplier implements Applier {
     }
 
     @Override
-    public void applyBeginQueryEvent(QueryEvent event, CurrentTransaction currentTransaction) {
+    public void applyBeginQueryEvent(RawBinlogEventQuery event, CurrentTransaction currentTransaction) {
         if (!apply_begin_event) {
             LOGGER.debug("Dropping BEGIN event because applyBeginEvent is off");
             return;
@@ -180,7 +190,16 @@ public class KafkaApplier implements Applier {
 
         AugmentedRow augmentedRow;
         try {
-            augmentedRow = new AugmentedRow(event.getBinlogFilename(), 0, null, null, "BEGIN", event.getHeader(), currentTransaction.getUuid(), currentTransaction.getXid(), apply_uuid, apply_xid);
+            augmentedRow = new AugmentedRow(
+                    event.getBinlogFilename(),
+                    0, null, null, "BEGIN",
+                    currentTransaction.getUuid(),
+                    currentTransaction.getXid(),
+                    apply_uuid,
+                    apply_xid,
+                    event.getPosition(),
+                    event.getTimestamp()
+            );
         } catch (TableMapException e) {
             throw new RuntimeException("Failed to create AugmentedRow for BEGIN event: ", e);
         }
@@ -190,7 +209,7 @@ public class KafkaApplier implements Applier {
     }
 
     @Override
-    public void applyCommitQueryEvent(QueryEvent event, CurrentTransaction currentTransaction) {
+    public void applyCommitQueryEvent(RawBinlogEventQuery event, CurrentTransaction currentTransaction) {
         if (!apply_commit_event) {
             LOGGER.debug("Dropping COMMIT event because applyCommitEvent is off");
             return;
@@ -200,7 +219,15 @@ public class KafkaApplier implements Applier {
 
         AugmentedRow augmentedRow;
         try {
-            augmentedRow = new AugmentedRow(event.getBinlogFilename(), 0, null, null, "COMMIT", event.getHeader(), currentTransaction.getUuid(), currentTransaction.getXid(), apply_uuid, apply_xid);
+            augmentedRow = new AugmentedRow(
+                    event.getBinlogFilename(),
+                    0, null, null, "COMMIT",
+                    currentTransaction.getUuid(),
+                    currentTransaction.getXid(),
+                    apply_uuid, apply_xid,
+                    event.getPosition(),
+                    event.getTimestamp()
+            );
         } catch (TableMapException e) {
             throw new RuntimeException("Failed to create AugmentedRow for COMMIT event: ", e);
         }
@@ -210,7 +237,7 @@ public class KafkaApplier implements Applier {
     }
 
     @Override
-    public void applyXidEvent(XidEvent event, CurrentTransaction currentTransaction) {
+    public void applyXidEvent(RawBinlogEventXid event, CurrentTransaction currentTransaction) {
         if (!apply_commit_event) {
             LOGGER.debug("Dropping XID event because applyBeginEvent is off");
             return;
@@ -220,7 +247,16 @@ public class KafkaApplier implements Applier {
 
         AugmentedRow augmentedRow;
         try {
-            augmentedRow = new AugmentedRow(event.getBinlogFilename(), 0, null, null, "XID", event.getHeader(), currentTransaction.getUuid(), currentTransaction.getXid(), apply_uuid, apply_xid);
+            augmentedRow = new AugmentedRow(
+                    event.getBinlogFilename(), 0, null, null, "XID",
+                    currentTransaction.getUuid(),
+                    currentTransaction.getXid(),
+                    apply_uuid,
+                    apply_xid,
+                    event.getPosition(),
+                    event.getTimestamp()
+            );
+
         } catch (TableMapException e) {
             throw new RuntimeException("Failed to create AugmentedRow for XID event: ", e);
         }
@@ -230,7 +266,7 @@ public class KafkaApplier implements Applier {
     }
 
     @Override
-    public void applyRotateEvent(RotateEvent event) {
+    public void applyRotateEvent(RawBinlogEventRotate event) {
 
     }
 
@@ -240,12 +276,12 @@ public class KafkaApplier implements Applier {
     }
 
     @Override
-    public void applyFormatDescriptionEvent(FormatDescriptionEvent event) {
+    public void applyFormatDescriptionEvent(RawBinlogEventFormatDescription event) {
 
     }
 
     @Override
-    public void applyTableMapEvent(TableMapEvent event) {
+    public void applyTableMapEvent(RawBinlogEventTableMap event) {
 
     }
 
@@ -384,7 +420,11 @@ public class KafkaApplier implements Applier {
                     // 3. open new buffer with current row as buffer-start-row
                     List<AugmentedRow> rowsBucket = new ArrayList<>();
                     rowsBucket.add(augmentedRow);
-                    partitionCurrentMessageBuffer.put(partitionNum, new RowListMessage(MESSAGE_BATCH_SIZE, rowsBucket));
+                    partitionCurrentMessageBuffer.put(
+                            partitionNum,
+                            new RowListMessage(MESSAGE_BATCH_SIZE, rowsBucket)
+                    );
+
 
                 } else {
                     // buffer row to current buffer
@@ -402,6 +442,7 @@ public class KafkaApplier implements Applier {
         }
     }
 
+//<<<<<<< HEAD
     public boolean isAfterLastRow(int partitionNum, String rowBinlogPositionID) {
         if (!partitionLastBufferedRow.containsKey(partitionNum)) return true;
         if (rowBinlogPositionID.compareTo(partitionLastBufferedRow.get(partitionNum)) > 0) return true;
@@ -418,6 +459,7 @@ public class KafkaApplier implements Applier {
     }
 
     private void sendMessage(int partitionNum) {
+
         RowListMessage rowListMessage = partitionCurrentMessageBuffer.get(partitionNum);
         String jsonMessage = rowListMessage.toJSON();
 
@@ -452,12 +494,15 @@ public class KafkaApplier implements Applier {
     }
 
     @Override
-    public void waitUntilAllRowsAreCommitted(BinlogEventV4 event) {
+    public void waitUntilAllRowsAreCommitted() {
+
         final Timer.Context context = closingTimer.time();
+
         // Producer close does the waiting, see documentation.
         producer.close();
         context.stop();
         producer = new KafkaProducer<>(getProducerProperties(brokerAddress));
         LOGGER.info("A new producer has been created");
+
     }
 }
