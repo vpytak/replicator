@@ -12,22 +12,22 @@ import com.booking.replication.applier.hbase.TaskBufferInconsistencyException;
 import com.booking.replication.augmenter.AugmentedRowsEvent;
 import com.booking.replication.augmenter.AugmentedSchemaChangeEvent;
 import com.booking.replication.augmenter.EventAugmenter;
+import com.booking.replication.binlog.common.Row;
+import com.booking.replication.binlog.event.*;
 import com.booking.replication.checkpoints.LastCommittedPositionCheckpoint;
-import com.booking.replication.queues.ReplicatorQueues;
+
 import com.booking.replication.replicant.ReplicantPool;
 import com.booking.replication.schema.ActiveSchemaVersion;
 import com.booking.replication.schema.exception.SchemaTransitionException;
 import com.booking.replication.schema.exception.TableMapException;
 import com.booking.replication.sql.QueryInspector;
 import com.booking.replication.sql.exception.QueryInspectorException;
-import com.google.code.or.binlog.BinlogEventV4;
-import com.google.code.or.binlog.impl.event.*;
-import com.google.code.or.common.util.MySQLConstants;
 import com.google.common.base.Joiner;
 
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
+import org.jruby.RubyProcess;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,6 +35,8 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.sql.SQLException;
 import java.util.HashMap;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 
@@ -55,7 +57,7 @@ public class PipelineOrchestrator extends Thread {
     public  final  Configuration                   configuration;
     private final  ReplicantPool                   replicantPool;
     private final  Applier                         applier;
-    private final  ReplicatorQueues                queues;
+    private final  BlockingQueue<RawBinlogEvent>   rawBinlogEventQueue;
     private final  QueryInspector                  queryInspector;
     private static EventAugmenter                  eventAugmenter;
     private static ActiveSchemaVersion             activeSchemaVersion;
@@ -123,13 +125,13 @@ public class PipelineOrchestrator extends Thread {
     }
 
     public PipelineOrchestrator(
-            ReplicatorQueues repQueues,
+            LinkedBlockingQueue<RawBinlogEvent> rawBinlogEventQueue,
             PipelinePosition pipelinePosition,
             Configuration repcfg,
             Applier applier,
             ReplicantPool replicantPool) throws SQLException, URISyntaxException {
 
-        queues = repQueues;
+        this.rawBinlogEventQueue = rawBinlogEventQueue;
         configuration = repcfg;
 
         this.replicantPool = replicantPool;
@@ -172,17 +174,19 @@ public class PipelineOrchestrator extends Thread {
 
     @Override
     public void run() {
+
         setRunning(true);
 
         long timeOfLastEvent = System.currentTimeMillis();
 
         while (isRunning()) {
             try {
-                if (queues.rawQueue.size() > 0) {
-                    BinlogEventV4 event =
-                            queues.rawQueue.poll(100, TimeUnit.MILLISECONDS);
 
-                    if (event == null) {
+                if (rawBinlogEventQueue.size() > 0) {
+
+                    RawBinlogEvent rawBinlogEvent = this.rawBinlogEventQueue.poll(100, TimeUnit.MILLISECONDS);
+
+                    if (rawBinlogEvent == null) {
                         LOGGER.warn("Poll timeout. Will sleep for 1s and try again.");
                         Thread.sleep(1000);
                         continue;
@@ -196,12 +200,12 @@ public class PipelineOrchestrator extends Thread {
                     pipelinePosition.updatCurrentPipelinePosition(
                         replicantPool.getReplicantDBActiveHost(),
                         replicantPool.getReplicantDBActiveHostServerID(),
-                        event,
+                        rawBinlogEvent,
                         fakeMicrosecondCounter
                     );
 
-                    if (! skipEvent(event)) {
-                        calculateAndPropagateChanges(event);
+                    if (! skipEvent(rawBinlogEvent)) {
+                        calculateAndPropagateChanges(rawBinlogEvent);
                         eventsProcessedCounter.mark();
                     } else {
                         eventsSkippedCounter.mark();
@@ -252,7 +256,7 @@ public class PipelineOrchestrator extends Thread {
      *      a. match column names and types
      * </p>
      */
-    public void calculateAndPropagateChanges(BinlogEventV4 event)
+    public void calculateAndPropagateChanges(RawBinlogEvent event)
             throws Exception, TableMapException {
 
         AugmentedRowsEvent augmentedRowsEvent;
@@ -265,12 +269,12 @@ public class PipelineOrchestrator extends Thread {
         // Note: there is a bug in open replicator which results in rotate event having timestamp value = 0.
         //       This messes up the replication delay time series. The workaround is not to calculate the
         //       replication delay at rotate event.
-        if (event.getHeader() != null) {
-            if ((event.getHeader().getTimestampOfReceipt() > 0)
-                    && (event.getHeader().getTimestamp() > 0) ) {
-                replDelay = event.getHeader().getTimestampOfReceipt() - event.getHeader().getTimestamp();
+        if (event.hasHeader()) {
+            if ((event.getTimestampOfReceipt() > 0)
+                    && (event.getTimestamp() > 0) ) {
+                replDelay = event.getTimestampOfReceipt() - event.getTimestamp();
             } else {
-                if (event.getHeader().getEventType() == MySQLConstants.ROTATE_EVENT) {
+                if (event.isRotate()) {
                     // do nothing, expected for rotate event
                 } else {
                     // warn, not expected for other events
@@ -306,12 +310,13 @@ public class PipelineOrchestrator extends Thread {
         }
 
         // Process Event
-        switch (event.getHeader().getEventType()) {
+        RawEventType rawEventType = event.getEventType();
+        switch (rawEventType) {
 
             // Check for DDL and pGTID:
-            case MySQLConstants.QUERY_EVENT:
+            case QUERY_EVENT:
                 doTimestampOverride(event);
-                String querySQL = ((QueryEvent) event).getSql().toString();
+                String querySQL = event.getQuerySQL();
 
                 boolean isPseudoGTID = queryInspector.isPseudoGTID(querySQL);
                 if (isPseudoGTID) {
@@ -352,24 +357,24 @@ public class PipelineOrchestrator extends Thread {
 
                 if (queryInspector.isCommit(querySQL, isDDLTable)) {
                     commitQueryCounter.mark();
-                    applier.applyCommitQueryEvent((QueryEvent) event);
+                    applier.applyCommitQueryEvent();
                 } else if (queryInspector.isBegin(querySQL, isDDLTable)) {
                     currentTransactionMetadata = new CurrentTransactionMetadata();
                 } else if (isDDLTable) {
                     // Sync all the things here.
                     applier.forceFlush();
-                    applier.waitUntilAllRowsAreCommitted(event);
+                    applier.waitUntilAllRowsAreCommitted();
 
                     try {
                         AugmentedSchemaChangeEvent augmentedSchemaChangeEvent = activeSchemaVersion.transitionSchemaToNextVersion(
                                 eventAugmenter.getSchemaTransitionSequence(event),
-                                event.getHeader().getTimestamp()
+                                event.getTimestamp()
                         );
 
                         String currentBinlogFileName =
                                 pipelinePosition.getCurrentPosition().getBinlogFilename();
 
-                        long currentBinlogPosition = event.getHeader().getPosition();
+                        long currentBinlogPosition = event.getPosition();
 
                         String pseudoGTID          = pipelinePosition.getCurrentPseudoGTID();
                         String pseudoGTIDFullQuery = pipelinePosition.getCurrentPseudoGTIDFullQuery();
@@ -405,8 +410,8 @@ public class PipelineOrchestrator extends Thread {
                 break;
 
             // TableMap event:
-            case MySQLConstants.TABLE_MAP_EVENT:
-                String tableName = ((TableMapEvent) event).getTableName().toString();
+            case TABLE_MAP_EVENT:
+                String tableName = ((RawBinlogEventTableMap) event).getTableName();
 
                 if (tableName.equals(Constants.HEART_BEAT_TABLE)) {
                     // reset the fake microsecond counter on hearth beat event. In our case
@@ -424,19 +429,19 @@ public class PipelineOrchestrator extends Thread {
 
                 try {
 
-                    currentTransactionMetadata.updateCache((TableMapEvent) event);
+                    currentTransactionMetadata.updateCache((RawBinlogEventTableMap) event);
 
-                    long tableID = ((TableMapEvent) event).getTableId();
+                    long tableID = ((RawBinlogEventTableMap) event).getTableId();
                     String dbName = currentTransactionMetadata.getDBNameFromTableID(tableID);
-                    LOGGER.debug("processing events for { db => " + dbName + " table => " + ((TableMapEvent) event).getTableName() + " } ");
+                    LOGGER.debug("processing events for { db => " + dbName + " table => " + ((RawBinlogEventTableMap) event).getTableName() + " } ");
                     LOGGER.debug("fakeMicrosecondCounter at tableMap event => " + fakeMicrosecondCounter);
 
-                    applier.applyTableMapEvent((TableMapEvent) event);
+                    applier.applyTableMapEvent((RawBinlogEventTableMap) event);
 
                     this.pipelinePosition.updatePipelineLastMapEventPosition(
                         replicantPool.getReplicantDBActiveHost(),
                         replicantPool.getReplicantDBActiveHostServerID(),
-                        (TableMapEvent) event,
+                        (RawBinlogEventTableMap) event,
                         fakeMicrosecondCounter
                     );
 
@@ -448,59 +453,56 @@ public class PipelineOrchestrator extends Thread {
                 break;
 
             // Data event:
-            case MySQLConstants.UPDATE_ROWS_EVENT:
-            case MySQLConstants.UPDATE_ROWS_EVENT_V2:
+            case UPDATE_ROWS_EVENT:
                 doTimestampOverride(event);
-                augmentedRowsEvent = eventAugmenter.mapDataEventToSchema((AbstractRowEvent) event, this);
+                augmentedRowsEvent = eventAugmenter.mapDataEventToSchema((RawBinlogEventRows) event, this);
                 applier.applyAugmentedRowsEvent(augmentedRowsEvent,this);
                 updateEventCounter.mark();
                 break;
 
-            case MySQLConstants.WRITE_ROWS_EVENT:
-            case MySQLConstants.WRITE_ROWS_EVENT_V2:
+            case WRITE_ROWS_EVENT:
                 doTimestampOverride(event);
-                augmentedRowsEvent = eventAugmenter.mapDataEventToSchema((AbstractRowEvent) event, this);
+                augmentedRowsEvent = eventAugmenter.mapDataEventToSchema((RawBinlogEventRows) event, this);
                 applier.applyAugmentedRowsEvent(augmentedRowsEvent,this);
                 insertEventCounter.mark();
                 break;
 
-            case MySQLConstants.DELETE_ROWS_EVENT:
-            case MySQLConstants.DELETE_ROWS_EVENT_V2:
+            case DELETE_ROWS_EVENT:
                 doTimestampOverride(event);
-                augmentedRowsEvent = eventAugmenter.mapDataEventToSchema((AbstractRowEvent) event, this);
+                augmentedRowsEvent = eventAugmenter.mapDataEventToSchema((RawBinlogEventRows) event, this);
                 applier.applyAugmentedRowsEvent(augmentedRowsEvent,this);
                 deleteEventCounter.mark();
                 break;
 
-            case MySQLConstants.XID_EVENT:
+            case XID_EVENT:
                 // Later we may want to tag previous data events with xid_id
                 // (so we can know if events were in the same transaction).
                 doTimestampOverride(event);
-                applier.applyXidEvent((XidEvent) event);
+                applier.applyXidEvent((RawBinlogEventXid) event);
                 XIDCounter.mark();
                 currentTransactionMetadata = new CurrentTransactionMetadata();
                 break;
 
             // reset the fakeMicrosecondCounter at the beginning of the new binlog file
-            case MySQLConstants.FORMAT_DESCRIPTION_EVENT:
+            case FORMAT_DESCRIPTION_EVENT:
                 fakeMicrosecondCounter = 0;
-                applier.applyFormatDescriptionEvent((FormatDescriptionEvent) event);
+                applier.applyFormatDescriptionEvent((RawBinlogEventFormatDescription) event);
                 break;
 
             // flush buffer at the end of binlog file
-            case MySQLConstants.ROTATE_EVENT:
-                RotateEvent rotateEvent = (RotateEvent) event;
+            case ROTATE_EVENT:
+                RawBinlogEventRotate rotateEvent = (RawBinlogEventRotate) event;
                 applier.applyRotateEvent(rotateEvent);
                 LOGGER.info("End of binlog file. Waiting for all tasks to finish before moving forward...");
 
                 //TODO: Investigate if this is the right thing to do.
-                applier.waitUntilAllRowsAreCommitted(rotateEvent);
+                applier.waitUntilAllRowsAreCommitted();
 
                 String currentBinlogFileName =
                         pipelinePosition.getCurrentPosition().getBinlogFilename();
 
                 String nextBinlogFileName = rotateEvent.getBinlogFileName().toString();
-                long currentBinlogPosition = rotateEvent.getBinlogPosition();
+                long currentBinlogPosition = rotateEvent.getPosition();
 
                 LOGGER.info("All rows committed for binlog file "
                         + currentBinlogFileName + ", moving to next binlog " + nextBinlogFileName);
@@ -534,13 +536,13 @@ public class PipelineOrchestrator extends Thread {
 
             // Events that we expect to appear in the binlog, but we don't do
             // any extra processing.
-            case MySQLConstants.STOP_EVENT:
+            case STOP_EVENT:
                 break;
 
             // Events that we do not expect to appear in the binlog
             // so a warning should be logged for those types
             default:
-                LOGGER.warn("Unexpected event type: " + event.getHeader().getEventType());
+                LOGGER.warn("Unexpected event type: " + rawEventType);
                 break;
         }
     }
@@ -556,7 +558,7 @@ public class PipelineOrchestrator extends Thread {
      * @param  event Binlog event that needs to be checked
      * @return shouldSkip Weather event should be skipped or processed
      */
-    public boolean skipEvent(BinlogEventV4 event) throws Exception {
+    public boolean skipEvent(RawBinlogEvent event) throws Exception {
         boolean eventIsTracked      = false;
         boolean skipEvent;
 
@@ -582,11 +584,12 @@ public class PipelineOrchestrator extends Thread {
             }
         }
 
-        switch (event.getHeader().getEventType()) {
+        RawEventType rawEventType = event.getEventType();
+        switch (rawEventType) {
             // Query Event:
-            case MySQLConstants.QUERY_EVENT:
+            case QUERY_EVENT:
 
-                String querySQL = ((QueryEvent) event).getSql().toString();
+                String querySQL = ((RawBinlogEventQuery) event).getSql();
 
                 boolean isDDLTable   = queryInspector.isDDLTable(querySQL);
                 boolean isCommit     = queryInspector.isCommit(querySQL, isDDLTable);
@@ -604,7 +607,7 @@ public class PipelineOrchestrator extends Thread {
                     // There is an assumption that all tables in the transaction
                     // are from the same database. Cross database transactions
                     // are not supported.
-                    TableMapEvent firstMapEvent = currentTransactionMetadata.getFirstMapEventInTransaction();
+                    RawBinlogEventTableMap firstMapEvent = currentTransactionMetadata.getFirstMapEventInTransaction();
                     if (firstMapEvent != null) {
                         String currentTransactionDBName = firstMapEvent.getDatabaseName().toString();
                         if (isReplicant(currentTransactionDBName)) {
@@ -624,9 +627,9 @@ public class PipelineOrchestrator extends Thread {
                     eventIsTracked = true;
                 } else if (isDDLTable) {
                     // DDL event should always contain db name
-                    String dbName = ((QueryEvent) event).getDatabaseName().toString();
+                    String dbName = ((RawBinlogEventQuery) event).getDatabaseName();
                     if ((dbName == null) || dbName.length() == 0) {
-                        LOGGER.warn("No Db name in Query Event. Extracted SQL: " + ((QueryEvent) event).getSql().toString());
+                        LOGGER.warn("No Db name in Query Event. Extracted SQL: " + ((RawBinlogEventQuery) event).getSql());
                     }
                     if (isReplicant(dbName)) {
                         eventIsTracked = true;
@@ -641,25 +644,22 @@ public class PipelineOrchestrator extends Thread {
                 break;
 
             // TableMap event:
-            case MySQLConstants.TABLE_MAP_EVENT:
-                eventIsTracked = isReplicant(((TableMapEvent) event).getDatabaseName().toString());
+            case TABLE_MAP_EVENT:
+                eventIsTracked = isReplicant(((RawBinlogEventTableMap) event).getDatabaseName());
                 break;
 
             // Data event:
-            case MySQLConstants.UPDATE_ROWS_EVENT:
-            case MySQLConstants.UPDATE_ROWS_EVENT_V2:
-            case MySQLConstants.WRITE_ROWS_EVENT:
-            case MySQLConstants.WRITE_ROWS_EVENT_V2:
-            case MySQLConstants.DELETE_ROWS_EVENT:
-            case MySQLConstants.DELETE_ROWS_EVENT_V2:
+            case UPDATE_ROWS_EVENT:
+            case WRITE_ROWS_EVENT:
+            case DELETE_ROWS_EVENT:
                 eventIsTracked = currentTransactionMetadata.getFirstMapEventInTransaction() != null;
                 break;
 
-            case MySQLConstants.XID_EVENT:
+            case XID_EVENT:
                 eventIsTracked = currentTransactionMetadata.getFirstMapEventInTransaction() != null;
                 break;
 
-            case MySQLConstants.ROTATE_EVENT:
+            case ROTATE_EVENT:
                 // This is a  workaround for a bug in open replicator
                 // which results in rotate event being created twice per
                 // binlog file - once at the end of the binlog file (as it should be)
@@ -674,24 +674,24 @@ public class PipelineOrchestrator extends Thread {
                 }
                 break;
 
-            case MySQLConstants.FORMAT_DESCRIPTION_EVENT:
+            case FORMAT_DESCRIPTION_EVENT:
                 eventIsTracked = true;
                 break;
 
-            case MySQLConstants.STOP_EVENT:
+            case STOP_EVENT:
                 eventIsTracked = true;
                 break;
 
             default:
                 eventIsTracked = false;
-                LOGGER.warn("Unexpected event type => " + event.getHeader().getEventType());
+                LOGGER.warn("Unexpected event type => " + rawEventType);
                 break;
         }
 
         return !eventIsTracked;
     }
 
-    private void doTimestampOverride(BinlogEventV4 event) {
+    private void doTimestampOverride(RawBinlogEvent event) {
         if (configuration.isInitialSnapshotMode()) {
             doInitialSnapshotEventTimestampOverride(event);
         } else {
@@ -699,27 +699,26 @@ public class PipelineOrchestrator extends Thread {
         }
     }
 
-    private void injectFakeMicroSecondsIntoEventTimestamp(BinlogEventV4 event) {
+    private void injectFakeMicroSecondsIntoEventTimestamp(RawBinlogEvent rawBinlogEvent) {
 
-        long overriddenTimestamp = event.getHeader().getTimestamp();
+        long overriddenTimestamp = rawBinlogEvent.getTimestamp();
 
         if (overriddenTimestamp != 0) {
-            // timestamp is in millisecond form, but the millisecond part is actually 000 (for example 1447755881000)
-            String timestampString = Long.toString(overriddenTimestamp).substring(0,10);
+            String timestampString = Long.toString(overriddenTimestamp).substring(0,10); // first ten digits
             overriddenTimestamp = Long.parseLong(timestampString) * 1000000;
             overriddenTimestamp += fakeMicrosecondCounter;
-            ((BinlogEventV4HeaderImpl)(event.getHeader())).setTimestamp(overriddenTimestamp);
+            rawBinlogEvent.overrideTimestamp(overriddenTimestamp);
         }
     }
 
     // set initial snapshot time to unix epoch.
-    private void doInitialSnapshotEventTimestampOverride(BinlogEventV4 event) {
+    private void doInitialSnapshotEventTimestampOverride(RawBinlogEvent rawBinlogEvent) {
 
-        long overriddenTimestamp = event.getHeader().getTimestamp();
+        long overriddenTimestamp = rawBinlogEvent.getTimestamp();
 
         if (overriddenTimestamp != 0) {
             overriddenTimestamp = 0;
-            ((BinlogEventV4HeaderImpl)(event.getHeader())).setTimestamp(overriddenTimestamp);
+           rawBinlogEvent.overrideTimestamp(overriddenTimestamp);
         }
     }
 }

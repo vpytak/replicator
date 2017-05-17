@@ -5,9 +5,6 @@ import com.booking.replication.schema.exception.TableMapException;
 import com.booking.replication.schema.table.TableSchemaVersion;
 import com.booking.replication.util.JsonBuilder;
 
-import com.google.code.or.binlog.BinlogEventV4Header;
-import com.google.code.or.binlog.impl.event.BinlogEventV4HeaderImpl;
-
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -29,10 +26,6 @@ import java.util.*;
 @JsonIgnoreProperties({"tableSchemaVersion"})
 public class AugmentedRow {
 
-    @JsonDeserialize(as = BinlogEventV4HeaderImpl.class)
-    @JsonIgnoreProperties({"headerLength", "position"})
-    private BinlogEventV4Header eventV4Header;
-
     @JsonDeserialize(as = TableSchemaVersion.class)
     private TableSchemaVersion tableSchemaVersion;
 
@@ -43,6 +36,7 @@ public class AugmentedRow {
 
     private String       rowUUID;
     private String       rowBinlogPositionID;
+    private Long         rowBinlogPositionTimestamp; // TODO: replace with commit_time when feature is ready
 
     // eventColumns: {
     //          column_name  => $name,
@@ -67,7 +61,6 @@ public class AugmentedRow {
      * @param tableName           Table name of the row
      * @param tableSchemaVersion         TableSchemaVersion object
      * @param eventType           Event type identifier (INSERT/UPDATE/DELETE)
-     * @param binlogEventV4Header BinlogEventV4Header object
      *
      * @throws InvalidParameterException    Invalid parameter
      * @throws TableMapException            Invalid table
@@ -78,20 +71,23 @@ public class AugmentedRow {
             String              tableName,
             TableSchemaVersion tableSchemaVersion,
             String              eventType,
-            BinlogEventV4Header binlogEventV4Header)  throws TableMapException {
+            Long eventPosition,
+            Long rowBinlogPositionTimestamp)  throws TableMapException {
 
         this.rowBinlogEventOrdinal = rowOrdinal;
         this.binlogFileName = binlogFileName;
         this.tableName = tableName;
         this.eventType = eventType;
-        this.eventV4Header = binlogEventV4Header;
 
         initTableSchema(tableSchemaVersion);
 
-        Long eventPosition = eventV4Header.getPosition();
-
         rowBinlogPositionID = String.format("%s:%020d:%020d", this.binlogFileName, eventPosition, this.rowBinlogEventOrdinal);
-        rowUUID = UUID.randomUUID().toString();;
+        rowUUID = UUID.randomUUID().toString();
+        this.rowBinlogPositionTimestamp = rowBinlogEventOrdinal;
+    }
+
+    public Long getRowBinlogPositionTimestamp() {
+        return rowBinlogPositionTimestamp;
     }
 
     /**
@@ -100,7 +96,7 @@ public class AugmentedRow {
      * @param columnName    Name of the column to update
      * @param valueBefore   Value before the update
      * @param valueAfter    Value after the update
-     * @param columnType    Column type
+     * @param columnType    ParsedColumn type
      * @throws InvalidParameterException    Invalid parameter
      * @throws TableMapException            Invalid table
      */
@@ -131,7 +127,7 @@ public class AugmentedRow {
      * Add column data.
      * @param columnName Name of the column to insert
      * @param value       Value to insert
-     * @param columnType  Column type
+     * @param columnType  ParsedColumn type
      */
     public void addColumnDataForInsert(
             String columnName,
@@ -202,10 +198,6 @@ public class AugmentedRow {
 
     public String getEventType() {
         return eventType;
-    }
-
-    public BinlogEventV4Header getEventV4Header() {
-        return eventV4Header;
     }
 
     public String getRowBinlogPositionID() {

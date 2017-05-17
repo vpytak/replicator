@@ -127,7 +127,7 @@ class BlackholeCopyMethod(object):
             if table_name[0:6] == '_BKTB_':
                 self.post()
                 logger.error("Broken database")
-                raise Exception("Did you forget to recover the database? Try to run db-recovery.py first!")
+                raise Exception("Did you forget to recover the database? Try to run db-recovery.py before!")
             self.hashCount += 1
             with open (hashmapFileName, 'a') as f:
                 f.write("_BKTB_%d,%s\n" % (self.hashCount, table_name))
@@ -187,7 +187,7 @@ class BlackholeCopyMethod(object):
         source = self.conDis.get_source()
         cursor = source.cursor()
         if len(table) == 3:
-            sql = """SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = %s and table_name = %s and column_key='PRI'"""
+            sql = """SELECT column_name, data_type FROM information_schema.parsedColumns WHERE table_schema = %s and table_name = %s and column_key='PRI'"""
             logger.info(sql) % (table[0], table[1])
             cursor.execute(sql, (table[0], table[1]))
             primary_key = cursor.fetchall()
@@ -272,6 +272,7 @@ class BlackholeCopyMethod(object):
         sql = 'set sql_log_bin=1'
         logger.info(sql)
         cursor.execute(sql)
+        print "Temp tables cleaned up."
         self.conDis.terminate()
 
 

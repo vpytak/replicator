@@ -1,14 +1,7 @@
 package com.booking.replication.pipeline;
 
-import com.google.code.or.binlog.BinlogEventV4;
-import com.google.code.or.binlog.impl.event.AbstractRowEvent;
-import com.google.code.or.binlog.impl.event.FormatDescriptionEvent;
-import com.google.code.or.binlog.impl.event.QueryEvent;
-import com.google.code.or.binlog.impl.event.RotateEvent;
-import com.google.code.or.binlog.impl.event.StopEvent;
-import com.google.code.or.binlog.impl.event.TableMapEvent;
-import com.google.code.or.binlog.impl.event.XidEvent;
-import com.google.code.or.common.util.MySQLConstants;
+import com.booking.replication.binlog.event.RawBinlogEvent;
+import com.booking.replication.binlog.event.RawBinlogEventTableMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -167,24 +160,24 @@ public class PipelinePosition {
     }
 
     public void updatePipelineLastMapEventPosition(
-        String host,
-        int serverID,
-        TableMapEvent event,
-        long fakeMicrosecondCounter
+            String host,
+            int serverID,
+            RawBinlogEventTableMap event,
+            long fakeMicrosecondCounter
     ) {
         if (this.getLastMapEventPosition() == null) {
             this.setLastMapEventPosition(new BinlogPositionInfo(
                     host,
                     serverID,
                     event.getBinlogFilename(),
-                    event.getHeader().getPosition(),
+                    event.getPosition(),
                     fakeMicrosecondCounter
             ));
         } else {
             this.getLastMapEventPosition().setHost(host);
             this.getLastMapEventPosition().setServerID(serverID);
-            this.getLastMapEventPosition().setBinlogFilename(getEventBinlogFileName(event));
-            this.getLastMapEventPosition().setBinlogPosition(getEventBinlogPosition(event));
+            this.getLastMapEventPosition().setBinlogFilename(event.getBinlogFilename());
+            this.getLastMapEventPosition().setBinlogPosition(event.getPosition());
             this.getLastMapEventPosition().setFakeMicrosecondsCounter(fakeMicrosecondCounter);
         }
     }
@@ -192,94 +185,16 @@ public class PipelinePosition {
     public void updatCurrentPipelinePosition(
         String host,
         int serverID,
-        BinlogEventV4 event,
+        RawBinlogEvent event,
         long fakeMicrosecondCounter
     ) {
         this.getCurrentPosition().setHost(host);
         this.getCurrentPosition().setServerID(serverID);
-        this.getCurrentPosition().setBinlogFilename(getEventBinlogFileName(event));
-        this.getCurrentPosition().setBinlogPosition(getEventBinlogPosition(event));
+        // binlog file name is updated on all events and not just on rotate event due to support for
+        // mysql failover, so before the rotate event is reached the binlog file name can change in
+        // case of mysql failover
+        this.getCurrentPosition().setBinlogFilename(event.getBinlogFilename());
+        this.getCurrentPosition().setBinlogPosition(event.getPosition());
         this.getCurrentPosition().setFakeMicrosecondsCounter(fakeMicrosecondCounter);
-    }
-
-    private String getEventBinlogFileName(BinlogEventV4 event) {
-
-        switch (event.getHeader().getEventType()) {
-
-            // Query Event:
-            case MySQLConstants.QUERY_EVENT:
-                return  ((QueryEvent) event).getBinlogFilename();
-
-            // TableMap event:
-            case MySQLConstants.TABLE_MAP_EVENT:
-                return ((TableMapEvent) event).getBinlogFilename();
-
-            case MySQLConstants.UPDATE_ROWS_EVENT:
-            case MySQLConstants.UPDATE_ROWS_EVENT_V2:
-            case MySQLConstants.WRITE_ROWS_EVENT:
-            case MySQLConstants.WRITE_ROWS_EVENT_V2:
-            case MySQLConstants.DELETE_ROWS_EVENT:
-            case MySQLConstants.DELETE_ROWS_EVENT_V2:
-                return ((AbstractRowEvent) event).getBinlogFilename();
-
-            case MySQLConstants.XID_EVENT:
-                return ((XidEvent) event).getBinlogFilename();
-
-            case MySQLConstants.ROTATE_EVENT:
-                return ((RotateEvent) event).getBinlogFilename();
-
-            case MySQLConstants.FORMAT_DESCRIPTION_EVENT:
-                return ((FormatDescriptionEvent) event).getBinlogFilename();
-
-            case MySQLConstants.STOP_EVENT:
-                return ((StopEvent) event).getBinlogFilename();
-
-            default:
-                LOGGER.warn("Unexpected event type => " + event.getHeader().getEventType());
-                // since it's not rotate event or format description event, the binlog file
-                // has not changed, so return the last recorded
-                return this.getCurrentPosition().getBinlogFilename();
-        }
-    }
-
-    private long getEventBinlogPosition(BinlogEventV4 event) {
-
-        switch (event.getHeader().getEventType()) {
-
-            // Query Event:
-            case MySQLConstants.QUERY_EVENT:
-                return  ((QueryEvent) event).getHeader().getPosition();
-
-            // TableMap event:
-            case MySQLConstants.TABLE_MAP_EVENT:
-                return ((TableMapEvent) event).getHeader().getPosition();
-
-            case MySQLConstants.UPDATE_ROWS_EVENT:
-            case MySQLConstants.UPDATE_ROWS_EVENT_V2:
-            case MySQLConstants.WRITE_ROWS_EVENT:
-            case MySQLConstants.WRITE_ROWS_EVENT_V2:
-            case MySQLConstants.DELETE_ROWS_EVENT:
-            case MySQLConstants.DELETE_ROWS_EVENT_V2:
-                return ((AbstractRowEvent) event).getHeader().getPosition();
-
-            case MySQLConstants.XID_EVENT:
-                return ((XidEvent) event).getHeader().getPosition();
-
-            case MySQLConstants.ROTATE_EVENT:
-                return ((RotateEvent) event).getHeader().getPosition();
-
-            case MySQLConstants.FORMAT_DESCRIPTION_EVENT:
-                // workaround for a bug in open replicator which sets next position to 0, so
-                // position turns out to be negative. Since it is always 4 for this event type,
-                // we just use 4.
-                return 4L;
-
-            case MySQLConstants.STOP_EVENT:
-                return ((StopEvent) event).getHeader().getPosition();
-
-            default:
-                LOGGER.warn("Unexpected event type: " + event.getHeader().getEventType());
-                return event.getHeader().getPosition();
-        }
     }
 }
