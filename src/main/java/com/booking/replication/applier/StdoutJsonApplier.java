@@ -4,16 +4,15 @@ import com.booking.replication.Configuration;
 import com.booking.replication.augmenter.AugmentedRow;
 import com.booking.replication.augmenter.AugmentedRowsEvent;
 import com.booking.replication.augmenter.AugmentedSchemaChangeEvent;
+//<<<<<<< HEAD
 import com.booking.replication.pipeline.CurrentTransaction;
+//=======
+//import com.booking.replication.binlog.event.RawBinlogEventFormatDescription;
+//import com.booking.replication.binlog.event.RawBinlogEventRotate;
+//import com.booking.replication.binlog.event.RawBinlogEventTableMap;
+//import com.booking.replication.binlog.event.RawBinlogEventXid;
+//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
 import com.booking.replication.pipeline.PipelineOrchestrator;
-
-import com.google.code.or.binlog.BinlogEventV4;
-
-import com.google.code.or.binlog.impl.event.FormatDescriptionEvent;
-import com.google.code.or.binlog.impl.event.QueryEvent;
-import com.google.code.or.binlog.impl.event.RotateEvent;
-import com.google.code.or.binlog.impl.event.TableMapEvent;
-import com.google.code.or.binlog.impl.event.XidEvent;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,7 +38,11 @@ public class StdoutJsonApplier implements Applier  {
     public StdoutJsonApplier(Configuration configuration) {}
 
     @Override
+//<<<<<<< HEAD
     public void applyXidEvent(XidEvent event, CurrentTransaction currentTransaction) {
+//=======
+//    public void applyXidEvent(RawBinlogEventXid event) {
+//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
         if (VERBOSE) {
             for (String table : stats.keySet()) {
                 LOGGER.info("XID Event, current stats: { table => " + table + ", rows => " + stats.get(table));
@@ -48,7 +51,7 @@ public class StdoutJsonApplier implements Applier  {
     }
 
     @Override
-    public void waitUntilAllRowsAreCommitted(BinlogEventV4 event) {
+    public void waitUntilAllRowsAreCommitted() {
 
         try {
             LOGGER.info("Sleeping as to simulate waiting for all rows being committed");
@@ -62,7 +65,7 @@ public class StdoutJsonApplier implements Applier  {
     @Override
     public void applyAugmentedRowsEvent(AugmentedRowsEvent augmentedRowsEvent, CurrentTransaction currentTransaction) {
         if (VERBOSE) {
-            LOGGER.info("Row Event: number of rows in event => " + augmentedRowsEvent.getSingleRowEvents().size());
+            LOGGER.info("ParsedRow Event: number of rows in event => " + augmentedRowsEvent.getSingleRowEvents().size());
         }
 
         for (AugmentedRow row : augmentedRowsEvent.getSingleRowEvents()) {
@@ -118,6 +121,7 @@ public class StdoutJsonApplier implements Applier  {
     }
 
     @Override
+//<<<<<<< HEAD
     public void applyBeginQueryEvent(QueryEvent event, CurrentTransaction currentTransaction) {
         if (VERBOSE) {
             LOGGER.info("BEGIN");
@@ -126,6 +130,9 @@ public class StdoutJsonApplier implements Applier  {
 
     @Override
     public void applyCommitQueryEvent(QueryEvent event, CurrentTransaction currentTransaction) {
+//=======
+//    public void applyCommitQueryEvent() {
+//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
         if (VERBOSE) {
             LOGGER.info("COMMIT");
             for (String table : stats.keySet()) {
@@ -155,18 +162,18 @@ public class StdoutJsonApplier implements Applier  {
     }
 
     @Override
-    public void applyRotateEvent(RotateEvent event) {
+    public void applyRotateEvent(RawBinlogEventRotate event) {
         LOGGER.info("binlog rotate: " + event.getBinlogFilename());
         LOGGER.info("STDOUTApplier totalRowsCounter => " + totalRowsCounter);
     }
 
     @Override
-    public void applyFormatDescriptionEvent(FormatDescriptionEvent event) {
+    public void applyFormatDescriptionEvent(RawBinlogEventFormatDescription event) {
 
     }
 
     @Override
-    public void applyTableMapEvent(TableMapEvent event) {
+    public void applyTableMapEvent(RawBinlogEventTableMap event) {
 
     }
 }

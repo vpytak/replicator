@@ -2,11 +2,16 @@ package com.booking.replication.applier;
 
 import com.booking.replication.augmenter.AugmentedRowsEvent;
 import com.booking.replication.augmenter.AugmentedSchemaChangeEvent;
+//<<<<<<< HEAD
 import com.booking.replication.pipeline.CurrentTransaction;
+//=======
+//import com.booking.replication.binlog.event.RawBinlogEventFormatDescription;
+//import com.booking.replication.binlog.event.RawBinlogEventRotate;
+//import com.booking.replication.binlog.event.RawBinlogEventTableMap;
+//import com.booking.replication.binlog.event.RawBinlogEventXid;
+//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
 import com.booking.replication.pipeline.PipelineOrchestrator;
 import com.codahale.metrics.Counter;
-import com.google.code.or.binlog.BinlogEventV4;
-import com.google.code.or.binlog.impl.event.*;
 
 import java.io.IOException;
 
@@ -41,12 +46,18 @@ public class EventCountingApplier implements Applier {
     }
 
     @Override
+//<<<<<<< HEAD
     public void applyBeginQueryEvent(QueryEvent event, CurrentTransaction currentTransaction) {
         wrapped.applyBeginQueryEvent(event, currentTransaction);
+//=======
+//    public void applyCommitQueryEvent() {
+//        wrapped.applyCommitQueryEvent();
+//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
         counter.inc();
     }
 
     @Override
+//<<<<<<< HEAD
     public void applyCommitQueryEvent(QueryEvent event, CurrentTransaction currentTransaction) {
         wrapped.applyCommitQueryEvent(event, currentTransaction);
         counter.inc();
@@ -55,11 +66,15 @@ public class EventCountingApplier implements Applier {
     @Override
     public void applyXidEvent(XidEvent event, CurrentTransaction currentTransaction) {
         wrapped.applyXidEvent(event, currentTransaction);
+//=======
+//    public void applyXidEvent(RawBinlogEventXid event) {
+//        wrapped.applyXidEvent(event);
+//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
         counter.inc();
     }
 
     @Override
-    public void applyRotateEvent(RotateEvent event) throws ApplierException, IOException {
+    public void applyRotateEvent(RawBinlogEventRotate event) throws ApplierException, IOException {
         wrapped.applyRotateEvent(event);
     }
 
@@ -75,19 +90,19 @@ public class EventCountingApplier implements Applier {
     }
 
     @Override
-    public void applyFormatDescriptionEvent(FormatDescriptionEvent event) {
+    public void applyFormatDescriptionEvent(RawBinlogEventFormatDescription event) {
         wrapped.applyFormatDescriptionEvent(event);
         counter.inc();
     }
 
     @Override
-    public void applyTableMapEvent(TableMapEvent event) {
+    public void applyTableMapEvent(RawBinlogEventTableMap event) {
         wrapped.applyTableMapEvent(event);
         counter.inc();
     }
 
     @Override
-    public void waitUntilAllRowsAreCommitted(BinlogEventV4 event) throws IOException, ApplierException {
-        wrapped.waitUntilAllRowsAreCommitted(event);
+    public void waitUntilAllRowsAreCommitted() throws IOException, ApplierException {
+        wrapped.waitUntilAllRowsAreCommitted();
     }
 }
