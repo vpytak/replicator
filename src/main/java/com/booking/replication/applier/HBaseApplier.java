@@ -125,7 +125,7 @@ public class HBaseApplier implements Applier {
     }
     /**
      * Core logic of the applier. Processes data events and writes to HBase.
-     *  @param augmentedRowsEvent Rows event
+     * @param augmentedRowsEvent Rows event
      * @param currentTransaction Current transaction metadata instance
      */
     @Override

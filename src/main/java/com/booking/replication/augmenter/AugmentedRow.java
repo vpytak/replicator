@@ -43,6 +43,7 @@ public class AugmentedRow {
 
     private String       rowUUID;
     private String       rowBinlogPositionID;
+    private String       rowPseudoGTIDPositionID;
     private UUID         transactionUUID;
     private Long         transactionXid;
     private boolean      applyUuid = false;
@@ -83,6 +84,8 @@ public class AugmentedRow {
             TableSchemaVersion tableSchemaVersion,
             String              eventType,
             BinlogEventV4Header binlogEventV4Header,
+            String              pseudoGTID,
+            Long                pseudoGTIDRelativeCounter,
             UUID                transactionUUID,
             Long                transactionXid,
             boolean applyUuid,
@@ -103,7 +106,24 @@ public class AugmentedRow {
         Long eventPosition = eventV4Header.getPosition();
 
         rowBinlogPositionID = String.format("%s:%020d:%020d", this.binlogFileName, eventPosition, this.rowBinlogEventOrdinal);
-        rowUUID = UUID.randomUUID().toString();;
+        rowPseudoGTIDPositionID = String.format("%s:%020d:%020d", pseudoGTID, pseudoGTIDRelativeCounter, this.rowBinlogEventOrdinal);
+        rowUUID = UUID.randomUUID().toString();
+    }
+
+    @Override
+    public String toString() {
+        return "AugmentedRow{" +
+                "eventV4Header=" + eventV4Header +
+                ", binlogFileName='" + binlogFileName + '\'' +
+                ", rowBinlogEventOrdinal=" + rowBinlogEventOrdinal +
+                ", tableName='" + tableName + '\'' +
+                ", rowUUID='" + rowUUID + '\'' +
+                ", rowBinlogPositionID='" + rowBinlogPositionID + '\'' +
+                ", rowPseudoGTIDPositionID='" + rowPseudoGTIDPositionID + '\'' +
+                ", transactionUUID=" + transactionUUID +
+                ", transactionXid=" + transactionXid +
+                ", eventType='" + eventType + '\'' +
+                '}';
     }
 
     /**
@@ -228,6 +248,10 @@ public class AugmentedRow {
 
     public String getRowBinlogPositionID() {
         return this.rowBinlogPositionID;
+    }
+
+    public String getRowPseudoGTIDPositionID() {
+        return rowPseudoGTIDPositionID;
     }
 
     public String getRowUUID() {

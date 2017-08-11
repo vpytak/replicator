@@ -162,11 +162,11 @@ public class PipelineOrchestrator extends Thread {
     }
 
     private void initEventDispatcher() {
-        EventHandlerConfiguration eventHandlerConfiguration = new EventHandlerConfiguration(applier, eventAugmenter, this);
+        EventHandlerConfiguration eventHandlerConfiguration = new EventHandlerConfiguration(applier, eventAugmenter, pipelinePosition, this);
 
         eventDispatcher.registerHandler(
                 MySQLConstants.QUERY_EVENT,
-                new QueryEventHandler(eventHandlerConfiguration, activeSchemaVersion, pipelinePosition));
+                new QueryEventHandler(eventHandlerConfiguration, activeSchemaVersion));
 
         eventDispatcher.registerHandler(
                 MySQLConstants.TABLE_MAP_EVENT,
@@ -261,13 +261,15 @@ public class PipelineOrchestrator extends Thread {
     private void processQueueLoop(BinlogPositionInfo exitOnBinlogPosition) throws Exception {
         while (isRunning()) {
             BinlogEventV4 event = waitForEvent(QUEUE_POLL_TIMEOUT, QUEUE_POLL_SLEEP);
-            LOGGER.debug("Received event: " + event);
 
             timeOfLastEvent = System.currentTimeMillis();
             eventsReceivedCounter.mark();
 
             // Update pipeline position
             fakeMicrosecondCounter++;
+            pipelinePosition.incrementCurrentPseudoGTIDRelativeCounter();
+
+            LOGGER.debug("Received event: " + event + ", fakeMicrosecondCounter: " + fakeMicrosecondCounter + ", currentPseudoGTID: " + pipelinePosition.getCurrentPseudoGTID() + ", currentPseudoGTIDRelativeCounter: " + pipelinePosition.getCurrentPseudoGTIDRelativeEventsCounter());
 
             BinlogPositionInfo currentPosition = new BinlogPositionInfo(replicantPool.getReplicantDBActiveHost(),
                     replicantPool.getReplicantDBActiveHostServerID(), EventPosition.getEventBinlogFileName(event),
@@ -678,7 +680,7 @@ public class PipelineOrchestrator extends Thread {
 
     private void commitTransaction() throws TransactionException {
         // apply all the buffered events
-        LOGGER.debug("/ transaction uuid: " + currentTransaction.getUuid() + ", id: " + currentTransaction.getXid());
+        LOGGER.debug("Committing transaction uuid: " + currentTransaction.getUuid() + ", id: " + currentTransaction.getXid());
         // apply changes from buffer and pass current metadata with xid and uuid
 
         try {

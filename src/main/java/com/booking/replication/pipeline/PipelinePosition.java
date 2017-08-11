@@ -1,18 +1,7 @@
 package com.booking.replication.pipeline;
 
 import com.booking.replication.binlog.EventPosition;
-import com.google.code.or.binlog.BinlogEventV4;
-import com.google.code.or.binlog.impl.event.AbstractRowEvent;
-import com.google.code.or.binlog.impl.event.FormatDescriptionEvent;
-import com.google.code.or.binlog.impl.event.QueryEvent;
-import com.google.code.or.binlog.impl.event.RotateEvent;
-import com.google.code.or.binlog.impl.event.StopEvent;
 import com.google.code.or.binlog.impl.event.TableMapEvent;
-import com.google.code.or.binlog.impl.event.XidEvent;
-import com.google.code.or.common.util.MySQLConstants;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Created by bosko on 7/25/16.
@@ -26,6 +15,7 @@ public class PipelinePosition {
 
     private String currentPseudoGTID;
     private String currentPseudoGTIDFullQuery;
+    private Long currentPseudoGTIDRelativeEventsCounter;
 
     private String currentReplicantHostName;
     private int    currentReplicantServerID;
@@ -38,36 +28,22 @@ public class PipelinePosition {
         String lastVerifiedBinlogFilename,
         Long   lastVerifiedBinlogPosition
     ) {
-        initPipelinePosition(
-            mySQLHost,
-            serverID,
-            startingBinlogFilename,
-            startingBinlogPosition,
-            lastVerifiedBinlogFilename,
-            lastVerifiedBinlogPosition
-        );
+        this(mySQLHost, serverID, startingBinlogFilename, startingBinlogPosition, null, null,
+                lastVerifiedBinlogFilename, lastVerifiedBinlogPosition);
     }
 
     public PipelinePosition(
-        String currentPseudoGTID,
-        String currentPseudoGTIDFullQuery,
-        String mySQLHost,
-        int    serverID,
-        String startingBinlogFilename,
-        Long   startingBinlogPosition,
-        String lastVerifiedBinlogFilename,
-        Long   lastVerifiedBinlogPosition
+            String mySQLHost,
+            int    serverID,
+            String startingBinlogFilename,
+            Long   startingBinlogPosition,
+            String currentPseudoGTID,
+            Long   currentPseudoGTIDRelativeEventsCounter,
+            String lastVerifiedBinlogFilename,
+            Long   lastVerifiedBinlogPosition
     ) {
-        initPipelinePosition(
-            mySQLHost,
-            serverID,
-            startingBinlogFilename,
-            startingBinlogPosition,
-            lastVerifiedBinlogFilename,
-            lastVerifiedBinlogPosition
-        );
-        this.currentPseudoGTID          = currentPseudoGTID;
-        this.currentPseudoGTIDFullQuery = currentPseudoGTIDFullQuery;
+        initPipelinePosition(mySQLHost, serverID, startingBinlogFilename, startingBinlogPosition,
+                currentPseudoGTID, currentPseudoGTIDRelativeEventsCounter, lastVerifiedBinlogFilename, lastVerifiedBinlogPosition);
     }
 
     private void initPipelinePosition(
@@ -75,11 +51,15 @@ public class PipelinePosition {
             int    serverID,
             String startingBinlogFilename,
             Long   startingBinlogPosition,
+            String currentPseudoGTID,
+            Long   currentPseudoGTIDRelativeEventsCounter,
             String lastVerifiedBinlogFileName,
             Long   lastVerifiedBinlogPosition
     ) {
         this.currentReplicantHostName   = mySQLHost;
         this.currentReplicantServerID   = serverID;
+        this.currentPseudoGTID = currentPseudoGTID;
+        this.currentPseudoGTIDRelativeEventsCounter = currentPseudoGTIDRelativeEventsCounter;
 
         BinlogPositionInfo startingBinlogPositionInfo;
         startingBinlogPositionInfo = new BinlogPositionInfo(
@@ -115,6 +95,18 @@ public class PipelinePosition {
 
     public void setCurrentPseudoGTIDFullQuery(String currentPseudoGTIDFullQuery) {
         this.currentPseudoGTIDFullQuery = currentPseudoGTIDFullQuery;
+    }
+
+    public long getCurrentPseudoGTIDRelativeEventsCounter() {
+        return currentPseudoGTIDRelativeEventsCounter;
+    }
+
+    public void setCurrentPseudoGTIDRelativeEventsCounter(long currentPseudoGTIDRelativeEventsCounter) {
+        this.currentPseudoGTIDRelativeEventsCounter = currentPseudoGTIDRelativeEventsCounter;
+    }
+
+    public void incrementCurrentPseudoGTIDRelativeCounter() {
+        this.currentPseudoGTIDRelativeEventsCounter++;
     }
 
     public com.booking.replication.pipeline.BinlogPositionInfo getCurrentPosition() {

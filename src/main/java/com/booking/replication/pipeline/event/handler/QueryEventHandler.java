@@ -2,7 +2,6 @@ package com.booking.replication.pipeline.event.handler;
 
 import com.booking.replication.Coordinator;
 import com.booking.replication.Metrics;
-import com.booking.replication.applier.Applier;
 import com.booking.replication.applier.ApplierException;
 import com.booking.replication.applier.HBaseApplier;
 import com.booking.replication.applier.hbase.TaskBufferInconsistencyException;
@@ -42,12 +41,11 @@ public class QueryEventHandler implements BinlogEventV4Handler {
     private final PipelinePosition pipelinePosition;
 
 
-    public QueryEventHandler(EventHandlerConfiguration eventHandlerConfiguration, ActiveSchemaVersion activeSchemaVersion,
-                             PipelinePosition pipelinePosition) {
+    public QueryEventHandler(EventHandlerConfiguration eventHandlerConfiguration, ActiveSchemaVersion activeSchemaVersion) {
         this.activeSchemaVersion = activeSchemaVersion;
         this.eventHandlerConfiguration = eventHandlerConfiguration;
-        this.pipelinePosition = pipelinePosition;
         this.pipelineOrchestrator = eventHandlerConfiguration.getPipelineOrchestrator();
+        pipelinePosition = eventHandlerConfiguration.getPipelinePosition();
     }
 
     @Override
@@ -75,9 +73,10 @@ public class QueryEventHandler implements BinlogEventV4Handler {
                             eventHandlerConfiguration.getEventAugmenter().getSchemaTransitionSequence(event),
                             event.getHeader().getTimestamp()
                     );
-
+// TODO: have to be stored during handling
                     String pseudoGTID = pipelinePosition.getCurrentPseudoGTID();
                     String pseudoGTIDFullQuery = pipelinePosition.getCurrentPseudoGTIDFullQuery();
+                    Long currentPseudoGTIDRelativeEventsCounter = pipelinePosition.getCurrentPseudoGTIDRelativeEventsCounter();
                     int currentSlaveId = pipelinePosition.getCurrentPosition().getServerID();
 
                     LastCommittedPositionCheckpoint marker = new LastCommittedPositionCheckpoint(
@@ -87,6 +86,7 @@ public class QueryEventHandler implements BinlogEventV4Handler {
                             EventPosition.getEventBinlogPosition(event),
                             pseudoGTID,
                             pseudoGTIDFullQuery,
+                            currentPseudoGTIDRelativeEventsCounter,
                             pipelineOrchestrator.getFakeMicrosecondCounter()
                     );
 
@@ -108,6 +108,7 @@ public class QueryEventHandler implements BinlogEventV4Handler {
 
                     pipelinePosition.setCurrentPseudoGTID(pseudoGTID);
                     pipelinePosition.setCurrentPseudoGTIDFullQuery(querySQL);
+                    pipelinePosition.setCurrentPseudoGTIDRelativeEventsCounter(0L);
                     if (eventHandlerConfiguration.getApplier() instanceof HBaseApplier) {
                         try {
                             ((HBaseApplier) eventHandlerConfiguration.getApplier()).applyPseudoGTIDEvent(new LastCommittedPositionCheckpoint(
@@ -117,6 +118,7 @@ public class QueryEventHandler implements BinlogEventV4Handler {
                                     pipelinePosition.getCurrentPosition().getBinlogPosition(),
                                     pseudoGTID,
                                     querySQL,
+                                    0L,
                                     pipelineOrchestrator.getFakeMicrosecondCounter()
                             ));
                         } catch (TaskBufferInconsistencyException e) {

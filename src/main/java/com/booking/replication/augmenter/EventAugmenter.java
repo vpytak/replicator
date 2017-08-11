@@ -4,6 +4,7 @@ import static com.codahale.metrics.MetricRegistry.name;
 
 import com.booking.replication.Metrics;
 import com.booking.replication.pipeline.CurrentTransaction;
+import com.booking.replication.pipeline.PipelinePosition;
 import com.booking.replication.schema.ActiveSchemaVersion;
 import com.booking.replication.schema.column.ColumnSchema;
 import com.booking.replication.schema.column.types.Converter;
@@ -129,7 +130,7 @@ public class EventAugmenter {
      * @param currentTransaction
      * @return AugmentedRowsEvent  AugmentedRow
      */
-    public AugmentedRowsEvent mapDataEventToSchema(AbstractRowEvent event, CurrentTransaction currentTransaction) throws TableMapException {
+    public AugmentedRowsEvent mapDataEventToSchema(AbstractRowEvent event, CurrentTransaction currentTransaction, PipelinePosition pipelinePosition) throws TableMapException {
 
         AugmentedRowsEvent au;
 
@@ -137,27 +138,27 @@ public class EventAugmenter {
 
             case MySQLConstants.UPDATE_ROWS_EVENT:
                 UpdateRowsEvent updateRowsEvent = ((UpdateRowsEvent) event);
-                au = augmentUpdateRowsEvent(updateRowsEvent, currentTransaction);
+                au = augmentUpdateRowsEvent(updateRowsEvent, currentTransaction, pipelinePosition);
                 break;
             case MySQLConstants.UPDATE_ROWS_EVENT_V2:
                 UpdateRowsEventV2 updateRowsEventV2 = ((UpdateRowsEventV2) event);
-                au = augmentUpdateRowsEventV2(updateRowsEventV2, currentTransaction);
+                au = augmentUpdateRowsEventV2(updateRowsEventV2, currentTransaction, pipelinePosition);
                 break;
             case MySQLConstants.WRITE_ROWS_EVENT:
                 WriteRowsEvent writeRowsEvent = ((WriteRowsEvent) event);
-                au = augmentWriteRowsEvent(writeRowsEvent, currentTransaction);
+                au = augmentWriteRowsEvent(writeRowsEvent, currentTransaction, pipelinePosition);
                 break;
             case MySQLConstants.WRITE_ROWS_EVENT_V2:
                 WriteRowsEventV2 writeRowsEventV2 = ((WriteRowsEventV2) event);
-                au = augmentWriteRowsEventV2(writeRowsEventV2, currentTransaction);
+                au = augmentWriteRowsEventV2(writeRowsEventV2, currentTransaction, pipelinePosition);
                 break;
             case MySQLConstants.DELETE_ROWS_EVENT:
                 DeleteRowsEvent deleteRowsEvent = ((DeleteRowsEvent) event);
-                au = augmentDeleteRowsEvent(deleteRowsEvent, currentTransaction);
+                au = augmentDeleteRowsEvent(deleteRowsEvent, currentTransaction, pipelinePosition);
                 break;
             case MySQLConstants.DELETE_ROWS_EVENT_V2:
                 DeleteRowsEventV2 deleteRowsEventV2 = ((DeleteRowsEventV2) event);
-                au = augmentDeleteRowsEventV2(deleteRowsEventV2, currentTransaction);
+                au = augmentDeleteRowsEventV2(deleteRowsEventV2, currentTransaction, pipelinePosition);
                 break;
             default:
                 throw new TableMapException("RBR event type expected! Received type: " + event.getHeader().getEventType(), event);
@@ -170,7 +171,7 @@ public class EventAugmenter {
         return au;
     }
 
-    private AugmentedRowsEvent augmentWriteRowsEvent(WriteRowsEvent writeRowsEvent, CurrentTransaction currentTransaction) throws TableMapException {
+    private AugmentedRowsEvent augmentWriteRowsEvent(WriteRowsEvent writeRowsEvent, CurrentTransaction currentTransaction, PipelinePosition pipelinePosition) throws TableMapException {
 
         // table name
         String tableName =  currentTransaction.getTableNameFromID(writeRowsEvent.getTableId());
@@ -204,6 +205,8 @@ public class EventAugmenter {
                     tableSchemaVersion,
                     evType,
                     writeRowsEvent.getHeader(),
+                    pipelinePosition.getCurrentPseudoGTID(),
+                    pipelinePosition.getCurrentPseudoGTIDRelativeEventsCounter(),
                     currentTransaction.getUuid(),
                     currentTransaction.getXid(),
                     applyUuid,
@@ -246,7 +249,8 @@ public class EventAugmenter {
     // Same as for V1 write event. There is some extra data in V2, but not sure if we can use it.
     private AugmentedRowsEvent augmentWriteRowsEventV2(
             WriteRowsEventV2 writeRowsEvent,
-            CurrentTransaction currentTransaction) throws TableMapException {
+            CurrentTransaction currentTransaction,
+            PipelinePosition pipelinePosition) throws TableMapException {
 
         // table name
         String tableName = currentTransaction.getTableNameFromID(writeRowsEvent.getTableId());
@@ -279,6 +283,8 @@ public class EventAugmenter {
                     tableSchemaVersion,
                     evType,
                     writeRowsEvent.getHeader(),
+                    pipelinePosition.getCurrentPseudoGTID(),
+                    pipelinePosition.getCurrentPseudoGTIDRelativeEventsCounter(),
                     currentTransaction.getUuid(),
                     currentTransaction.getXid(),
                     applyUuid,
@@ -319,7 +325,7 @@ public class EventAugmenter {
         return augEventGroup;
     }
 
-    private AugmentedRowsEvent augmentDeleteRowsEvent(DeleteRowsEvent deleteRowsEvent, CurrentTransaction currentTransaction)
+    private AugmentedRowsEvent augmentDeleteRowsEvent(DeleteRowsEvent deleteRowsEvent, CurrentTransaction currentTransaction, PipelinePosition pipelinePosition)
             throws TableMapException {
 
         // table name
@@ -351,6 +357,8 @@ public class EventAugmenter {
                     tableSchemaVersion,
                     evType,
                     deleteRowsEvent.getHeader(),
+                    pipelinePosition.getCurrentPseudoGTID(),
+                    pipelinePosition.getCurrentPseudoGTIDRelativeEventsCounter(),
                     currentTransaction.getUuid(),
                     currentTransaction.getXid(),
                     applyUuid,
@@ -392,7 +400,8 @@ public class EventAugmenter {
     // For now this is the same as for V1 event.
     private AugmentedRowsEvent augmentDeleteRowsEventV2(
             DeleteRowsEventV2 deleteRowsEvent,
-            CurrentTransaction currentTransaction) throws TableMapException {
+            CurrentTransaction currentTransaction,
+            PipelinePosition pipelinePosition) throws TableMapException {
         // table name
         String tableName = currentTransaction.getTableNameFromID(deleteRowsEvent.getTableId());
 
@@ -424,6 +433,8 @@ public class EventAugmenter {
                     tableSchemaVersion,
                     evType,
                     deleteRowsEvent.getHeader(),
+                    pipelinePosition.getCurrentPseudoGTID(),
+                    pipelinePosition.getCurrentPseudoGTIDRelativeEventsCounter(),
                     currentTransaction.getUuid(),
                     currentTransaction.getXid(),
                     applyUuid,
@@ -463,7 +474,7 @@ public class EventAugmenter {
         return augEventGroup;
     }
 
-    private AugmentedRowsEvent augmentUpdateRowsEvent(UpdateRowsEvent upEvent, CurrentTransaction currentTransaction) throws TableMapException {
+    private AugmentedRowsEvent augmentUpdateRowsEvent(UpdateRowsEvent upEvent, CurrentTransaction currentTransaction, PipelinePosition pipelinePosition) throws TableMapException {
 
         // table name
         String tableName = currentTransaction.getTableNameFromID(upEvent.getTableId());
@@ -498,6 +509,8 @@ public class EventAugmenter {
                     tableSchemaVersion,
                     evType,
                     upEvent.getHeader(),
+                    pipelinePosition.getCurrentPseudoGTID(),
+                    pipelinePosition.getCurrentPseudoGTIDRelativeEventsCounter(),
                     currentTransaction.getUuid(),
                     currentTransaction.getXid(),
                     applyUuid,
@@ -542,7 +555,7 @@ public class EventAugmenter {
     }
 
     // For now this is the same as V1. Not sure if the extra info in V2 can be of use to us.
-    private AugmentedRowsEvent augmentUpdateRowsEventV2(UpdateRowsEventV2 upEvent, CurrentTransaction currentTransaction) throws TableMapException {
+    private AugmentedRowsEvent augmentUpdateRowsEventV2(UpdateRowsEventV2 upEvent, CurrentTransaction currentTransaction, PipelinePosition pipelinePosition) throws TableMapException {
 
         // table name
         String tableName = currentTransaction.getTableNameFromID(upEvent.getTableId());
@@ -577,6 +590,8 @@ public class EventAugmenter {
                     tableSchemaVersion,
                     evType,
                     upEvent.getHeader(),
+                    pipelinePosition.getCurrentPseudoGTID(),
+                    pipelinePosition.getCurrentPseudoGTIDRelativeEventsCounter(),
                     currentTransaction.getUuid(),
                     currentTransaction.getXid(),
                     applyUuid,

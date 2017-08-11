@@ -58,6 +58,7 @@ public class RotateEventHandler implements BinlogEventV4Handler {
 
         String pseudoGTID = pipelinePosition.getCurrentPseudoGTID();
         String pseudoGTIDFullQuery = pipelinePosition.getCurrentPseudoGTIDFullQuery();
+        Long currentPseudoGTIDRelativeEventsCounter = pipelinePosition.getCurrentPseudoGTIDRelativeEventsCounter();
         int currentSlaveId = pipelinePosition.getCurrentPosition().getServerID();
 
         LastCommittedPositionCheckpoint marker = new LastCommittedPositionCheckpoint(
@@ -67,6 +68,7 @@ public class RotateEventHandler implements BinlogEventV4Handler {
                 currentBinlogPosition,
                 pseudoGTID,
                 pseudoGTIDFullQuery,
+                currentPseudoGTIDRelativeEventsCounter,
                 pipelineOrchestrator.getFakeMicrosecondCounter()
         );
 

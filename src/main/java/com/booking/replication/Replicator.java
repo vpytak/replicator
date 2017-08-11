@@ -97,9 +97,11 @@ public class Replicator {
                 if ( safeCheckPoint != null ) {
 
                     String pseudoGTID = safeCheckPoint.getPseudoGTID();
+                    Long pseudoGTIDRelativeCounter = safeCheckPoint.getPseudoGTIDRelativeCounter();
                     fakeMicrosecondCounter = safeCheckPoint.getFakeMicrosecondCounter();
 
                     if (pseudoGTID != null) {
+                        if (pseudoGTIDRelativeCounter == null) pseudoGTIDRelativeCounter = 0L; // initialize counter if we have pseudoGTID, but no saved value (version upgrade for ex.)
 
                         String replicantActiveHost = replicantPool.getReplicantDBActiveHost();
                         int    serverID            = replicantPool.getReplicantDBActiveHostServerID();
@@ -121,6 +123,8 @@ public class Replicator {
                             serverID,
                             startingBinlogFileName,
                             startingBinlogPosition,
+                            pseudoGTID,
+                            pseudoGTIDRelativeCounter,
                             // positions are not comparable between different hosts
                             (sameHost ? safeCheckPoint.getLastVerifiedBinlogFileName() : startingBinlogFileName),
                             (sameHost ? safeCheckPoint.getLastVerifiedBinlogPosition() : startingBinlogPosition)

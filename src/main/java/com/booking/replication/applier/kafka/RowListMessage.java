@@ -7,7 +7,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -18,9 +17,11 @@ public class RowListMessage {
     // metadata
     private int     messageSize;
     private String  messageBinlogPositionID;
+    private String messagePseudoGTIDPositionID;
 
     private String  firstRowBinlogPositionID;
     private String  lastRowBinlogPositionID;
+    private String  lastRowPseudoGTIDPositionID;
 
     private boolean isOpen;
 
@@ -37,6 +38,7 @@ public class RowListMessage {
         this.messageSize              = messageSize;
         this.firstRowBinlogPositionID = rowsInitialBucket.get(0).getRowBinlogPositionID();
         this.messageBinlogPositionID  = "M-" + firstRowBinlogPositionID;
+        this.messagePseudoGTIDPositionID = "M-" + rowsInitialBucket.get(0).getRowPseudoGTIDPositionID();
         this.isOpen                   = true; // TODO: add separate 'committed' property
 
         // init payload
@@ -63,6 +65,7 @@ public class RowListMessage {
         // set the last row position metadata
         AugmentedRow lastRow =  this.rows.get(rows.size() - 1);
         this.lastRowBinlogPositionID = lastRow.getRowBinlogPositionID();
+        this.lastRowPseudoGTIDPositionID = lastRow.getRowPseudoGTIDPositionID();
     }
 
     public void addRowToMessage(AugmentedRow row) throws KafkaMessageBufferException {
@@ -89,8 +92,16 @@ public class RowListMessage {
         return lastRowBinlogPositionID;
     }
 
+    public String getLastRowPseudoGTIDPositionID() {
+        return lastRowPseudoGTIDPositionID;
+    }
+
     public void setLastRowBinlogPositionID(String lastRowBinlogPositionID) {
         this.lastRowBinlogPositionID = lastRowBinlogPositionID;
+    }
+
+    public String getMessagePseudoGTIDPositionID() {
+        return messagePseudoGTIDPositionID;
     }
 
     public List<AugmentedRow> getRows() {

@@ -22,6 +22,7 @@ public class LastCommittedPositionCheckpoint implements SafeCheckPoint {
 
     private String pseudoGTID;
     private String pseudoGTIDFullQuery;
+    private Long pseudoGTIDRelativeCounter;
     private long fakeMicrosecondCounter = 0L;
 
     public LastCommittedPositionCheckpoint(int slaveId, String binlogFileName, long fakeMicrosecondCounter) {
@@ -69,6 +70,7 @@ public class LastCommittedPositionCheckpoint implements SafeCheckPoint {
         long binlogPosition,
         String pseudoGTID,
         String pseudoGTIDFullQuery,
+        Long pseudoGTIDRelativeCounter,
         long fakeMicrosecondCounter
     ) {
         this.hostName                   = hostName;
@@ -77,6 +79,7 @@ public class LastCommittedPositionCheckpoint implements SafeCheckPoint {
         this.lastVerifiedBinlogPosition = binlogPosition;
         this.pseudoGTID                 = pseudoGTID;
         this.pseudoGTIDFullQuery        = pseudoGTIDFullQuery;
+        this.pseudoGTIDRelativeCounter = pseudoGTIDRelativeCounter;
         this.checkpointType             = SafeCheckpointType.GLOBAL_PSEUDO_GTID;
         this.fakeMicrosecondCounter     = fakeMicrosecondCounter;
     }
@@ -100,6 +103,14 @@ public class LastCommittedPositionCheckpoint implements SafeCheckPoint {
 
     public String getPseudoGTID() {
         return pseudoGTID;
+    }
+
+    public Long getPseudoGTIDRelativeCounter() {
+        return pseudoGTIDRelativeCounter;
+    }
+
+    public void setPseudoGTIDRelativeCounter(Long pseudoGTIDRelativeCounter) {
+        this.pseudoGTIDRelativeCounter = pseudoGTIDRelativeCounter;
     }
 
     public long getFakeMicrosecondCounter() {
