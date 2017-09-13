@@ -182,7 +182,7 @@ public class KafkaApplier implements Applier {
         AugmentedRow augmentedRow;
         try {
             augmentedRow = new AugmentedRow(event.getBinlogFilename(), 0, null, null, "BEGIN", event.getHeader(),
-                    pipelinePosition.getCurrentPseudoGTID(), pipelinePosition.getCurrentPseudoGTIDRelativeEventsCounter(),
+                    event.getCurrentPseudoGTID(), event.getCurrentPseudoGTIDRelativeEventsCounter(),
                     currentTransaction.getUuid(), currentTransaction.getXid(), apply_uuid, apply_xid);
         } catch (TableMapException e) {
             throw new RuntimeException("Failed to create AugmentedRow for BEGIN event: ", e);
@@ -204,7 +204,7 @@ public class KafkaApplier implements Applier {
         AugmentedRow augmentedRow;
         try {
             augmentedRow = new AugmentedRow(event.getBinlogFilename(), 0, null, null, "COMMIT", event.getHeader(),
-                    pipelinePosition.getCurrentPseudoGTID(), pipelinePosition.getCurrentPseudoGTIDRelativeEventsCounter(),
+                    event.getCurrentPseudoGTID(), event.getCurrentPseudoGTIDRelativeEventsCounter(),
                     currentTransaction.getUuid(), currentTransaction.getXid(), apply_uuid, apply_xid);
         } catch (TableMapException e) {
             throw new RuntimeException("Failed to create AugmentedRow for COMMIT event: ", e);
@@ -226,7 +226,7 @@ public class KafkaApplier implements Applier {
         AugmentedRow augmentedRow;
         try {
             augmentedRow = new AugmentedRow(event.getBinlogFilename(), 0, null, null, "XID", event.getHeader(),
-                    pipelinePosition.getCurrentPseudoGTID(), pipelinePosition.getCurrentPseudoGTIDRelativeEventsCounter(),
+                    event.getCurrentPseudoGTID(), event.getCurrentPseudoGTIDRelativeEventsCounter(),
                     currentTransaction.getUuid(), currentTransaction.getXid(), apply_uuid, apply_xid);
         } catch (TableMapException e) {
             throw new RuntimeException("Failed to create AugmentedRow for XID event: ", e);
