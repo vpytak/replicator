@@ -5,6 +5,7 @@ import static com.codahale.metrics.MetricRegistry.name;
 import com.booking.replication.Configuration;
 import com.booking.replication.Constants;
 import com.booking.replication.Metrics;
+import com.codahale.metrics.MetricRegistry;
 
 import com.booking.replication.binlog.common.Row;
 import com.booking.replication.binlog.event.*;
@@ -16,6 +17,7 @@ import com.github.shyiko.mysql.binlog.event.Event;
 
 import com.google.code.or.OpenReplicator;
 import com.google.code.or.binlog.BinlogEventV4;
+import com.google.code.or.binlog.BinlogEventListener;
 
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
@@ -67,61 +69,44 @@ public class BinlogEventProducer {
      */
     public BinlogEventProducer(
 
-//<<<<<<< HEAD
-//=======
-//        LinkedBlockingQueue<RawBinlogEvent> rawBinlogEventQueue,
-//        PipelinePosition                    pipelinePosition,
-//        Configuration                       configuration,
-//        ReplicantPool                       replicantPool,
-//        int                                 binlogParserProviderCode
-//
-//    ) throws Exception {
-//
-//        this.rawBinlogEventQueue = rawBinlogEventQueue;
-//        this.pipelinePosition    = pipelinePosition;
-//        this.configuration       = configuration;
-//        this.replicantPool       = replicantPool;
-//
-//        this.BINLOG_EVENT_PARSER_PROVIDER_CODE = binlogParserProviderCode;
-//
-//        Random random = new Random();
-//
-//        int serverId = (random.nextInt() >>> 1) | (1 << 30); // a large positive random integer
-//
-//        binlogEventParserProvider =
-//            BinlogEventParserProviderFactory.getBinlogEventParserProvider(
-//                    serverId,
-//                    BINLOG_EVENT_PARSER_PROVIDER_CODE,
-//                    configuration,
-//                    pipelinePosition
-//            );
-//
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
+        LinkedBlockingQueue<RawBinlogEvent> rawBinlogEventQueue,
+        PipelinePosition                    pipelinePosition,
+        Configuration                       configuration,
+        ReplicantPool                       replicantPool,
+        int                                 binlogParserProviderCode
+
+    ) throws Exception {
+
+        this.rawBinlogEventQueue = rawBinlogEventQueue;
+        this.pipelinePosition = pipelinePosition;
+        this.configuration = configuration;
+        this.replicantPool = replicantPool;
+
+        this.BINLOG_EVENT_PARSER_PROVIDER_CODE = binlogParserProviderCode;
+
+        Random random = new Random();
+
+        int serverId = (random.nextInt() >>> 1) | (1 << 30); // a large positive random integer
+
+        binlogEventParserProvider =
+                BinlogEventParserProviderFactory.getBinlogEventParserProvider(
+                        serverId,
+                        BINLOG_EVENT_PARSER_PROVIDER_CODE,
+                        configuration,
+                        pipelinePosition
+                );
+
         Metrics.registry.register(name("events", "producerBackPressureSleep"),
                 (Gauge<Long>) () -> backPressureSleep);
-
-//<<<<<<< HEAD
-        openReplicator = initOpenReplicator();
-        setBinlogPosition(pipelinePosition.getCurrentPosition().getBinlogPosition());
-        setBinlogFileName(pipelinePosition.getCurrentPosition().getBinlogFilename());
-
     }
 
-    private OpenReplicator initOpenReplicator() {
-        OpenReplicator openReplicator = new OpenReplicator();
-        // config
-        openReplicator.setUser(configuration.getReplicantDBUserName());
-        openReplicator.setPassword(configuration.getReplicantDBPassword());
-        openReplicator.setPort(configuration.getReplicantPort());
-//=======
-//    private void startBinaryLogClient(BinaryLogClient binaryLogClient) throws IOException, Exception {
-//
-//        binaryLogClient.registerEventListener(new EventListener() {
-//
-//            @Override
-//            public void onEvent(Event event) {
-//                producedEvents.mark();
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
+    private void startBinaryLogClient(BinaryLogClient binaryLogClient) throws IOException, Exception {
+
+        binaryLogClient.registerEventListener(new EventListener() {
+
+            @Override
+            public void onEvent(Event event) {
+                producedEvents.mark();
 
                 // This call is blocking the writes from server side. If time goes above
                 // net_write_timeout (which defaults to 60s) server will drop connection.
@@ -180,192 +165,135 @@ public class BinlogEventProducer {
                             } catch (Exception e) {
                                 LOGGER.error("rawBinlogEventsQueue.offer failed.", e);
                             }
-
-//<<<<<<< HEAD
-        // disable lv2 buffer
-        openReplicator.setLevel2BufferSize(-1);
-
-        openReplicator.setBinlogEventListener(event -> {
-            producedEvents.mark();
-
-            // This call is blocking the writes from server side. If time goes above
-            // net_write_timeout (which defaults to 60s) server will drop connection.
-            //      => Use back pressure to regulate the write rate to the queue.
-
-            if (isRunning()) {
-                boolean eventQueued = false;
-                while (!eventQueued) { // blocking block
-                    try {
-                        backPressureSleep();
-                        boolean added = queue.offer(event, 100, TimeUnit.MILLISECONDS);
-
-                        if (added) {
-                            opCounter++;
-                            eventQueued = true;
-                            if (opCounter % 100000 == 0) {
-                                LOGGER.info("Producer reporting queue size => " + queue.size());
-//=======
-//                            if (added) {
-//                                opCounter++;
-//                                eventQueued = true;
-//                                if (opCounter % 10000 == 0) {
-//                                    LOGGER.info("Producer reporting queue size => " + rawBinlogEventQueue.size());
-//                                }
-//                            } else {
-//                                LOGGER.error("queue.offer timed out. Will sleep for 100ms and try again");
-//                                Thread.sleep(100);
-//                            }
-//                        } catch (InterruptedException e) {
-//                            e.printStackTrace();
-//                        }
-//                    }
-//                }
-//            }
-//        });
-//        LOGGER.info("starting BinaryLogClient from: { binlog-file => "
-//                + binaryLogClient.getBinlogFilename()
-//                + ", position => "
-//                + binaryLogClient.getBinlogPosition()
-//                + " }"
-//        );
-//        binaryLogClient.connect(10000);
-//    }
-//
-//    /**
-//     * Start.
-//     */
-//    public void startOpenReplicator(OpenReplicator openReplicator) throws Exception {
-//
-//        openReplicator.setBinlogEventListener(new BinlogEventListener() {
-//
-//            public void onEvents(BinlogEventV4 event) {
-//
-//                producedEvents.mark();
-//
-//                // This call is blocking the writes from server side. If time goes above
-//                // net_write_timeout (which defaults to 60s) server will drop connection.
-//                //      => Use back pressure to regulate the write rate to the queue.
-//
-//                if (isRunning()) {
-//                    boolean eventQueued = false;
-//                    while (!eventQueued) { // blocking block
-//                        try {
-//                            backPressureSleep();
-//                            boolean added = false;
-//                            try {
-//                                RawBinlogEvent rawBinlogEvent;
-//                                switch (event.getHeader().getEventType()) {
-//                                    // Check for DDL and pGTID:
-//                                    case MySQLConstants.QUERY_EVENT:
-//                                        rawBinlogEvent = new RawBinlogEventQuery(event);
-//                                        break;
-//                                    case MySQLConstants.TABLE_MAP_EVENT:
-//                                        rawBinlogEvent = new RawBinlogEventTableMap(event);
-//                                        break;
-//                                    case MySQLConstants.UPDATE_ROWS_EVENT:
-//                                    case MySQLConstants.UPDATE_ROWS_EVENT_V2:
-//                                        rawBinlogEvent = new RawBinlogEventUpdateRows(event);
-//                                        break;
-//                                    case MySQLConstants.WRITE_ROWS_EVENT:
-//                                    case MySQLConstants.WRITE_ROWS_EVENT_V2:
-//                                        rawBinlogEvent = new RawBinlogEventWriteRows(event);
-//                                        break;
-//                                    case MySQLConstants.DELETE_ROWS_EVENT:
-//                                    case MySQLConstants.DELETE_ROWS_EVENT_V2:
-//                                        rawBinlogEvent = new RawBinlogEventDeleteRows(event);
-//                                        break;
-//                                   case MySQLConstants.XID_EVENT:
-//                                        rawBinlogEvent = new RawBinlogEventXid(event);
-//                                        break;
-//                                    case MySQLConstants.FORMAT_DESCRIPTION_EVENT:
-//                                        rawBinlogEvent = new RawBinlogEventFormatDescription(event);
-//                                        break;
-//                                    case MySQLConstants.ROTATE_EVENT:
-//                                        rawBinlogEvent = new RawBinlogEventRotate(event);
-//                                        break;
-//                                    case MySQLConstants.STOP_EVENT:
-//                                        rawBinlogEvent = new RawBinlogEventStop(event);
-//                                        break;
-//                                    default:
-//                                        rawBinlogEvent = new RawBinlogEvent(event);
-//                                        break;
-//                                }
-//                                added = rawBinlogEventQueue.offer(rawBinlogEvent, 100, TimeUnit.MILLISECONDS);
-//                            } catch (Exception e) {
-//                                LOGGER.error("rawBinlogEventsQueue.offer failed ", e);
-//                            }
-//
- //                           if (added) {
- //                               opCounter++;
- //                               eventQueued = true;
-//                                if (opCounter % 100000 == 0) {
-//                                    LOGGER.info("Producer reporting queue size => " + rawBinlogEventQueue.size());
-//                                }
-//                            } else {
-//                                LOGGER.error("queue.offer timed out. Will sleep for 100ms and try again");
-//                                Thread.sleep(100);
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
+                            if (added) {
+                                opCounter++;
+                                eventQueued = true;
+                                if (opCounter % 10000 == 0) {
+                                    LOGGER.info("Producer reporting queue size => " + rawBinlogEventQueue.size());
+                                }
+                            } else {
+                                LOGGER.error("queue.offer timed out. Will sleep for 100ms and try again");
+                                Thread.sleep(100);
                             }
-                        } else {
-                            LOGGER.error("queue.offer timed out. Will sleep for 100ms and try again");
-                            Thread.sleep(100);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
                         }
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
                     }
                 }
             }
         });
-//<<<<<<< HEAD
-        return openReplicator;
-    }
-
-
-    public void setBinlogFileName(String binlogFileName) {
-        LOGGER.info("Changing binlog filename from: " + openReplicator.getBinlogFileName() + " to: " + binlogFileName);
-        openReplicator.setBinlogFileName(binlogFileName);
-    }
-
-    public void setBinlogPosition(long binlogPosition) {
-        LOGGER.info("Changing binlog position from: " + openReplicator.getBinlogPosition() + " to: " + binlogPosition);
-        openReplicator.setBinlogPosition(binlogPosition);
+        LOGGER.info("starting BinaryLogClient from: { binlog-file => "
+                + binaryLogClient.getBinlogFilename()
+                + ", position => "
+                + binaryLogClient.getBinlogPosition()
+                + " }"
+        );
+        binaryLogClient.connect(10000);
     }
 
     /**
      * Start.
      */
-    public void start() throws Exception {
-        LOGGER.info("Starting producer from: { binlog-file => " + openReplicator.getBinlogFileName()
-                + ", position => " + openReplicator.getBinlogPosition() + " }");
-//=======
-//        LOGGER.info("starting Open Replicator from: { binlog-file => "
-//                + openReplicator.getBinlogFileName()
-//                + ", position => "
-//                + openReplicator.getBinlogPosition()
-//                + " }"
-//        );
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
-        openReplicator.start();
-    }
+    public void startOpenReplicator(OpenReplicator openReplicator) throws Exception {
 
-    public void stop(long timeout, TimeUnit unit) throws Exception {
-        LOGGER.info("Stopping producer. Start point was: { binlog-file => " + openReplicator.getBinlogFileName()
-                + ", position => " + openReplicator.getBinlogPosition() + " }");
-        openReplicator.stop(timeout, unit);
+        openReplicator.setBinlogEventListener(
+
+                new BinlogEventListener() {
+
+                      public void onEvents(BinlogEventV4 event) {
+
+                          producedEvents.mark();
+
+                          // This call is blocking the writes from server side. If time goes above
+                          // net_write_timeout (which defaults to 60s) server will drop connection.
+                          //      => Use back pressure to regulate the write rate to the queue.
+
+                          if (isRunning()) {
+                              boolean eventQueued = false;
+                              while (!eventQueued) { // blocking block
+                                  try {
+                                      backPressureSleep();
+                                      boolean added = false;
+                                      try {
+                                          RawBinlogEvent rawBinlogEvent;
+                                          switch (event.getHeader().getEventType()) {
+                                              // Check for DDL and pGTID:
+                                              case MySQLConstants.QUERY_EVENT:
+                                                  rawBinlogEvent = new RawBinlogEventQuery(event);
+                                                  break;
+                                              case MySQLConstants.TABLE_MAP_EVENT:
+                                                  rawBinlogEvent = new RawBinlogEventTableMap(event);
+                                                  break;
+                                              case MySQLConstants.UPDATE_ROWS_EVENT:
+                                              case MySQLConstants.UPDATE_ROWS_EVENT_V2:
+                                                  rawBinlogEvent = new RawBinlogEventUpdateRows(event);
+                                                  break;
+                                              case MySQLConstants.WRITE_ROWS_EVENT:
+                                              case MySQLConstants.WRITE_ROWS_EVENT_V2:
+                                                  rawBinlogEvent = new RawBinlogEventWriteRows(event);
+                                                  break;
+                                              case MySQLConstants.DELETE_ROWS_EVENT:
+                                              case MySQLConstants.DELETE_ROWS_EVENT_V2:
+                                                  rawBinlogEvent = new RawBinlogEventDeleteRows(event);
+                                                  break;
+                                              case MySQLConstants.XID_EVENT:
+                                                  rawBinlogEvent = new RawBinlogEventXid(event);
+                                                  break;
+                                              case MySQLConstants.FORMAT_DESCRIPTION_EVENT:
+                                                  rawBinlogEvent = new RawBinlogEventFormatDescription(event);
+                                                  break;
+                                              case MySQLConstants.ROTATE_EVENT:
+                                                  rawBinlogEvent = new RawBinlogEventRotate(event);
+                                                  break;
+                                              case MySQLConstants.STOP_EVENT:
+                                                  rawBinlogEvent = new RawBinlogEventStop(event);
+                                                  break;
+                                              default:
+                                                  rawBinlogEvent = new RawBinlogEvent(event);
+                                                  break;
+                                          }
+                                          added = rawBinlogEventQueue.offer(rawBinlogEvent, 100, TimeUnit.MILLISECONDS);
+                                      } catch (Exception e) {
+                                          LOGGER.error("rawBinlogEventsQueue.offer failed ", e);
+                                      }
+
+                                      if (added) {
+                                          opCounter++;
+                                          eventQueued = true;
+                                          if (opCounter % 100000 == 0) {
+                                              LOGGER.info("Producer reporting queue size => " + rawBinlogEventQueue.size());
+                                          }
+                                      } else {
+                                          LOGGER.error("queue.offer timed out. Will sleep for 100ms and try again");
+                                          Thread.sleep(100);
+                                      }
+
+                                  } catch (InterruptedException e) {
+                                      e.printStackTrace();
+                                  }
+                              }
+                          }
+                      }
+                  });
+
+        LOGGER.info("starting Open Replicator from: { binlog-file => "
+                + openReplicator.getBinlogFileName()
+                + ", position => "
+                + openReplicator.getBinlogPosition()
+                + " }"
+        );
+
+        openReplicator.start();
     }
 
     public void clearQueue() {
         LOGGER.debug("Clearing queue");
-        queue.clear();
+        rawBinlogEventQueue.clear();
     }
 
     public void stopAndClearQueue(long timeout, TimeUnit unit) throws Exception {
         stop(timeout, unit);
         clearQueue();
-    }
-
-    public boolean isRunning() {
-        return this.openReplicator.isRunning();
     }
 
     private void backPressureSleep() {
@@ -395,46 +323,41 @@ public class BinlogEventProducer {
         }
     }
 
-//<<<<<<< HEAD
-    public OpenReplicator getOpenReplicator() {
-        return openReplicator;
-//=======
-//    public void stopOpenReplicator(OpenReplicator openReplicator, long timeout, TimeUnit unit) throws Exception {
-//        openReplicator.stop(timeout, unit);
-//    }
-//
-//    public void stopBinaryLogClient (BinaryLogClient binaryLogClient, long timeout, TimeUnit unit) throws Exception {
-//        binaryLogClient.disconnect();
-//    }
-//
-//    public boolean isRunning() {
-//        if (BINLOG_EVENT_PARSER_PROVIDER_CODE == BinlogEventParserProviderCode.OR) {
-//            return ((OpenReplicator)binlogEventParserProvider).isRunning();
-//        }
-//        else { // if (BINLOG_EVENT_PARSER_PROVIDER_CODE == BinlogEventParserProviderCode.OR) {
-//            return  ((BinaryLogClient)binlogEventParserProvider).isConnected();
-//        }
-//    }
-//
-//    public void stop(long timeout, TimeUnit unit) throws Exception {
-//        if (BINLOG_EVENT_PARSER_PROVIDER_CODE == BinlogEventParserProviderCode.OR) {
-//            stopOpenReplicator((OpenReplicator)binlogEventParserProvider,  timeout, unit);
-//        }
-//        else {
-//            stopBinaryLogClient((BinaryLogClient)binlogEventParserProvider,timeout, unit);
-//        }
-//    }
+    public void stopOpenReplicator(OpenReplicator openReplicator, long timeout, TimeUnit unit) throws Exception {
+        openReplicator.stop(timeout, unit);
+    }
 
-//    public void start() throws Exception {
-//        if (binlogEventParserProvider instanceof OpenReplicator) {
-//            startOpenReplicator((OpenReplicator) binlogEventParserProvider);
-//        }
-//        else if (binlogEventParserProvider instanceof BinaryLogClient) {
-//            startBinaryLogClient((BinaryLogClient) binlogEventParserProvider);
-//        }
-//        else {
-//            throw new Exception("Unsupported parser exception");
-//        }
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
+    public void stopBinaryLogClient (BinaryLogClient binaryLogClient, long timeout, TimeUnit unit) throws Exception {
+        binaryLogClient.disconnect();
+    }
+
+    public boolean isRunning() {
+        if (BINLOG_EVENT_PARSER_PROVIDER_CODE == BinlogEventParserProviderCode.OR) {
+            return ((OpenReplicator)binlogEventParserProvider).isRunning();
+        }
+        else { // if (BINLOG_EVENT_PARSER_PROVIDER_CODE == BinlogEventParserProviderCode.OR) {
+            return  ((BinaryLogClient)binlogEventParserProvider).isConnected();
+        }
+    }
+
+    public void stop(long timeout, TimeUnit unit) throws Exception {
+        if (BINLOG_EVENT_PARSER_PROVIDER_CODE == BinlogEventParserProviderCode.OR) {
+            stopOpenReplicator((OpenReplicator)binlogEventParserProvider,  timeout, unit);
+        }
+        else {
+            stopBinaryLogClient((BinaryLogClient)binlogEventParserProvider,timeout, unit);
+        }
+    }
+
+    public void start() throws Exception {
+        if (binlogEventParserProvider instanceof OpenReplicator) {
+            startOpenReplicator((OpenReplicator) binlogEventParserProvider);
+        }
+        else if (binlogEventParserProvider instanceof BinaryLogClient) {
+            startBinaryLogClient((BinaryLogClient) binlogEventParserProvider);
+        }
+        else {
+            throw new Exception("Unsupported parser exception");
+        }
     }
 }

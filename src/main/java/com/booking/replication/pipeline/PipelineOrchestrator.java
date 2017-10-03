@@ -776,14 +776,14 @@ public class PipelineOrchestrator extends Thread {
      * @param  event Binlog event that needs to be checked
      * @return shouldSkip Weather event should be skipped or processed
      */
-<<<<<<< HEAD
+//<<<<<<< HEAD
     private boolean skipEvent(BinlogEventV4 event) throws Exception {
-=======
-    public boolean skipEvent(RawBinlogEvent event) throws Exception {
-        boolean eventIsTracked      = false;
-        boolean skipEvent;
-
->>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
+//=======
+//    public boolean skipEvent(RawBinlogEvent event) throws Exception {
+//        boolean eventIsTracked      = false;
+//        boolean skipEvent;
+//
+//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
         // if there is a last safe checkpoint, skip events that are before
         // or equal to it, so that the same events are not writen multiple
         // times (beside wasting IO, this would fail the DDL operations,
