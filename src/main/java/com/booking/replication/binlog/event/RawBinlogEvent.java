@@ -350,10 +350,9 @@ public class RawBinlogEvent {
     // POSITION
     public long getPosition() {
         if (this.USING_DEPRECATED_PARSER) {
-            return getOpenReplicatorEventBinlogPosition(this.binlogEventV4);
+            return this.binlogEventV4.getHeader().getPosition();
         }
         else {
-
             // this EventHeaderV4 implements EventHeader and is returned by Event.getHeader() but
             // needs to be explicitly casted since getHeader returns <T extends EventHeader> T
             // look at
@@ -364,43 +363,19 @@ public class RawBinlogEvent {
         }
     }
 
-    private long getOpenReplicatorEventBinlogPosition(BinlogEventV4 event) {
+    public long getNextPosition() {
+        if (this.USING_DEPRECATED_PARSER) {
+            return this.binlogEventV4.getHeader().getNextPosition();
+        }
+        else {
 
-        switch (event.getHeader().getEventType()) {
-
-            // Query Event:
-            case MySQLConstants.QUERY_EVENT:
-                return  ((QueryEvent) event).getHeader().getPosition();
-
-            // TableMap event:
-            case MySQLConstants.TABLE_MAP_EVENT:
-                return ((TableMapEvent) event).getHeader().getPosition();
-
-            case MySQLConstants.UPDATE_ROWS_EVENT:
-            case MySQLConstants.UPDATE_ROWS_EVENT_V2:
-            case MySQLConstants.WRITE_ROWS_EVENT:
-            case MySQLConstants.WRITE_ROWS_EVENT_V2:
-            case MySQLConstants.DELETE_ROWS_EVENT:
-            case MySQLConstants.DELETE_ROWS_EVENT_V2:
-                return ((AbstractRowEvent) event).getHeader().getPosition();
-
-            case MySQLConstants.XID_EVENT:
-                return ((XidEvent) event).getHeader().getPosition();
-
-            case MySQLConstants.ROTATE_EVENT:
-                return ((RotateEvent) event).getHeader().getPosition();
-
-            case MySQLConstants.FORMAT_DESCRIPTION_EVENT:
-                // workaround for a bug in open replicator which sets next position to 0, so
-                // position turns out to be negative. Since it is always 4 for this event type,
-                // we just use 4.
-                return 4L;
-
-            case MySQLConstants.STOP_EVENT:
-                return ((StopEvent) event).getHeader().getPosition();
-
-            default:
-                return event.getHeader().getPosition();
+            // this EventHeaderV4 implements EventHeader and is returned by Event.getHeader() but
+            // needs to be explicitly casted since getHeader returns <T extends EventHeader> T
+            // look at
+            //      https://github.com/shyiko/mysql-binlog-connector-java/blob/eead0ec2338f7229ba74a7a04188f4967f13d4b7/src/main/java/com/github/shyiko/mysql/binlog/event/Event.java
+            // and
+            //      https://github.com/shyiko/mysql-binlog-connector-java/blob/eead0ec2338f7229ba74a7a04188f4967f13d4b7/src/main/java/com/github/shyiko/mysql/binlog/event/EventHeaderV4.java
+            return ((EventHeaderV4) this.binlogConnectorEvent.getHeader()).getNextPosition();
         }
     }
 

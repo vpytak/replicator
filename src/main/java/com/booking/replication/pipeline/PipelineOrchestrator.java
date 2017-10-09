@@ -7,24 +7,20 @@ import com.booking.replication.applier.Applier;
 import com.booking.replication.applier.ApplierException;
 import com.booking.replication.applier.HBaseApplier;
 import com.booking.replication.augmenter.EventAugmenter;
-//<<<<<<< HEAD
-import com.booking.replication.binlog.EventPosition;
-import com.booking.replication.binlog.event.QueryEventType;
+
+
 import com.booking.replication.checkpoints.LastCommittedPositionCheckpoint;
 import com.booking.replication.pipeline.event.handler.*;
-import com.booking.replication.queues.ReplicatorQueues;
-//=======
-//import com.booking.replication.binlog.common.Row;
-//import com.booking.replication.binlog.event.*;
-//import com.booking.replication.checkpoints.LastCommittedPositionCheckpoint;
-//
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
+import com.booking.replication.binlog.common.*;
+import com.booking.replication.binlog.event.*;
+
+import com.booking.replication.checkpoints.LastCommittedPositionCheckpoint;
+
 import com.booking.replication.replicant.ReplicantPool;
 import com.booking.replication.schema.ActiveSchemaVersion;
 import com.booking.replication.schema.exception.SchemaTransitionException;
 import com.booking.replication.schema.exception.TableMapException;
 import com.booking.replication.sql.QueryInspector;
-//<<<<<<< HEAD
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
@@ -32,15 +28,12 @@ import com.google.code.or.binlog.BinlogEventV4;
 import com.google.code.or.binlog.impl.event.*;
 import com.google.code.or.common.util.MySQLConstants;
 import com.google.common.base.Joiner;
-//=======
-//import com.booking.replication.sql.exception.QueryInspectorException;
-//import com.google.common.base.Joiner;
+import com.booking.replication.sql.exception.QueryInspectorException;
+import com.google.common.base.Joiner;
 
-//import com.codahale.metrics.Gauge;
-//import com.codahale.metrics.Meter;
-//import com.codahale.metrics.MetricRegistry;
-//import org.jruby.RubyProcess;
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
+import com.codahale.metrics.Gauge;
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.MetricRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,23 +73,17 @@ public class PipelineOrchestrator extends Thread {
     private static final int DEFAULT_VERSIONS_FOR_MIRRORED_TABLES = 1000;
     private static final long QUEUE_POLL_TIMEOUT = 100L;
     private static final long QUEUE_POLL_SLEEP = 500;
-    private static EventAugmenter eventAugmenter;
-    private static ActiveSchemaVersion activeSchemaVersion;
-//=======
-//    public  final  Configuration                   configuration;
-//    private final  ReplicantPool                   replicantPool;
-//    private final  Applier                         applier;
-//    private final  BlockingQueue<RawBinlogEvent>   rawBinlogEventQueue;
-//    private final  QueryInspector                  queryInspector;
-//    private static EventAugmenter                  eventAugmenter;
-//    private static ActiveSchemaVersion             activeSchemaVersion;
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
+
+
+    private final  BlockingQueue<RawBinlogEvent>   rawBinlogEventQueue;
+    private static EventAugmenter                  eventAugmenter;
+    private static ActiveSchemaVersion             activeSchemaVersion;
+
     private static LastCommittedPositionCheckpoint lastVerifiedPseudoGTIDCheckPoint;
     public final Configuration configuration;
     private final Configuration.OrchestratorConfiguration orchestratorConfiguration;
     private final ReplicantPool replicantPool;
     private final Applier applier;
-    private final ReplicatorQueues queues;
     private final EventDispatcher eventDispatcher = new EventDispatcher();
 
     private final PipelinePosition pipelinePosition;
@@ -129,8 +116,6 @@ public class PipelineOrchestrator extends Thread {
     private boolean isRewinding = false;
 
     private Long replDelay = 0L;
-
-
 
     public PipelineOrchestrator(
             LinkedBlockingQueue<RawBinlogEvent> rawBinlogEventQueue,
@@ -170,14 +155,14 @@ public class PipelineOrchestrator extends Thread {
     }
 
     public PipelineOrchestrator(
-            ReplicatorQueues repQueues,
+            LinkedBlockingQueue<RawBinlogEvent> rawBinlogEventQueue,
             PipelinePosition pipelinePosition,
             Configuration repcfg,
             Applier applier,
             ReplicantPool replicantPool,
             BinlogEventProducer binlogEventProducer,
             long fakeMicrosecondCounter) throws SQLException, URISyntaxException {
-        this(repQueues, pipelinePosition, repcfg, applier, replicantPool, binlogEventProducer, fakeMicrosecondCounter, true);
+        this(rawBinlogEventQueue, pipelinePosition, repcfg, applier, replicantPool, binlogEventProducer, fakeMicrosecondCounter, true);
     }
 
     private void registerMetrics() {
@@ -290,7 +275,7 @@ public class PipelineOrchestrator extends Thread {
     private void processQueueLoop(BinlogPositionInfo exitOnBinlogPosition) throws Exception {
         while (isRunning()) {
 //<<<<<<< HEAD
-            BinlogEventV4 event = waitForEvent(QUEUE_POLL_TIMEOUT, QUEUE_POLL_SLEEP);
+            RawBinlogEvent event = waitForEvent(QUEUE_POLL_TIMEOUT, QUEUE_POLL_SLEEP);
             LOGGER.debug("Received event: " + event);
 
             timeOfLastEvent = System.currentTimeMillis();
@@ -299,9 +284,13 @@ public class PipelineOrchestrator extends Thread {
             // Update pipeline position
             fakeMicrosecondCounter++;
 
-            BinlogPositionInfo currentPosition = new BinlogPositionInfo(replicantPool.getReplicantDBActiveHost(),
-                    replicantPool.getReplicantDBActiveHostServerID(), EventPosition.getEventBinlogFileName(event),
-                    EventPosition.getEventBinlogPosition(event), fakeMicrosecondCounter);
+            BinlogPositionInfo currentPosition = new BinlogPositionInfo(
+                    replicantPool.getReplicantDBActiveHost(),
+                    replicantPool.getReplicantDBActiveHostServerID(),
+                    EventPosition.getEventBinlogFileName(event),
+                    EventPosition.getEventBinlogPosition(event),
+                    fakeMicrosecondCounter
+            );
             pipelinePosition.setCurrentPosition(currentPosition);
 
             processEvent(event);
@@ -317,7 +306,7 @@ public class PipelineOrchestrator extends Thread {
         }
     }
 
-    private void processEvent(BinlogEventV4 event) throws Exception {
+    private void processEvent(RawBinlogEvent event) throws Exception {
         if (skipEvent(event)) {
             LOGGER.debug("Skipping event: " + event);
             eventsSkippedCounter.mark();
@@ -402,17 +391,19 @@ public class PipelineOrchestrator extends Thread {
         return resultEvent;
     }
 
-    private BinlogEventV4 waitForEvent(long timeout, long sleep) throws InterruptedException, ApplierException, IOException {
+    private RawBinlogEvent waitForEvent(long timeout, long sleep) throws InterruptedException, ApplierException, IOException {
         while (isRunning()) {
-            if (queues.rawQueue.size() > 0) {
-                BinlogEventV4 event = queues.rawQueue.poll(timeout, TimeUnit.MILLISECONDS);
 
-                if (event == null) {
+            if (rawBinlogEventQueue.size() > 0) {
+                RawBinlogEvent rawBinlogEvent = this.rawBinlogEventQueue.poll(timeout, TimeUnit.MILLISECONDS);
+
+                if (rawBinlogEvent == null) {
                     LOGGER.warn("Poll timeout. Will sleep for " + QUEUE_POLL_SLEEP * 2  + "ms and try again.");
                     Thread.sleep(sleep * 2);
                     continue;
                 }
-                return event;
+
+                return rawBinlogEvent;
 
             } else {
                 LOGGER.debug("Pipeline report: no items in producer event rawQueue. Will sleep for " + QUEUE_POLL_SLEEP + " and check again.");
@@ -776,18 +767,15 @@ public class PipelineOrchestrator extends Thread {
      * @param  event Binlog event that needs to be checked
      * @return shouldSkip Weather event should be skipped or processed
      */
-//<<<<<<< HEAD
-    private boolean skipEvent(BinlogEventV4 event) throws Exception {
-//=======
-//    public boolean skipEvent(RawBinlogEvent event) throws Exception {
-//        boolean eventIsTracked      = false;
-//        boolean skipEvent;
-//
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
+    public boolean skipEvent(RawBinlogEvent event) throws Exception {
+
+        boolean eventIsTracked      = false;
+        boolean skipEvent;
+
         // if there is a last safe checkpoint, skip events that are before
-        // or equal to it, so that the same events are not writen multiple
+        // or equal to it, so that the same events are not written multiple
         // times (beside wasting IO, this would fail the DDL operations,
-        // for example trying to create a table that allready exists)
+        // for example trying to create a table that already exists)
         if (pipelinePosition.getLastSafeCheckPointPosition() != null) {
             if ((pipelinePosition.getLastSafeCheckPointPosition().greaterThan(pipelinePosition.getCurrentPosition()))
                     || (pipelinePosition.getLastSafeCheckPointPosition().equals(pipelinePosition.getCurrentPosition()))) {
@@ -807,11 +795,12 @@ public class PipelineOrchestrator extends Thread {
 
         RawEventType rawEventType = event.getEventType();
         switch (rawEventType) {
+
             // Query Event:
             case QUERY_EVENT:
 
-// <<<<<<< HEAD
-                switch (QueryInspector.getQueryEventType((QueryEvent) event)) {
+                // <<<<<<< HEAD
+                switch (QueryInspector.getQueryEventType((RawBinlogEventQuery) event)) {
                     case BEGIN:
                     case PSEUDOGTID:
                         return false;
@@ -822,6 +811,9 @@ public class PipelineOrchestrator extends Thread {
                         // are from the same database. Cross database transactions
                         // are not supported.
                         LOGGER.debug("Got commit event: " + event);
+
+                        // TODO: port currentTransaction to binlog connect
+                        // RawBinlogEventTableMap firstMapEvent = currentTransactionMetadata.getFirstMapEventInTransaction();
                         TableMapEvent firstMapEvent = currentTransaction.getFirstMapEventInTransaction();
                         if (firstMapEvent == null) {
                             LOGGER.warn(String.format(
@@ -834,28 +826,6 @@ public class PipelineOrchestrator extends Thread {
                             //throw new TransactionException("Got COMMIT while not in transaction: " + currentTransaction);
                         }
 
-//=======
-//                String querySQL = ((RawBinlogEventQuery) event).getSql();
-//
-//                boolean isDDLTable   = queryInspector.isDDLTable(querySQL);
-//                boolean isCommit     = queryInspector.isCommit(querySQL, isDDLTable);
-//                boolean isBegin      = queryInspector.isBegin(querySQL, isDDLTable);
-//               boolean isPseudoGTID = queryInspector.isPseudoGTID(querySQL);
-//
-//               if (isPseudoGTID) {
-//                   skipEvent = false;
-//                   return skipEvent;
-//               }
-//
-//                if (isCommit) {
-//                    // COMMIT does not always contain database name so we get it
-//                    // from current transaction metadata.
-//                    // There is an assumption that all tables in the transaction
-//                    // are from the same database. Cross database transactions
-//                    // are not supported.
-//                    RawBinlogEventTableMap firstMapEvent = currentTransactionMetadata.getFirstMapEventInTransaction();
-//                    if (firstMapEvent != null) {
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
                         String currentTransactionDBName = firstMapEvent.getDatabaseName().toString();
                         if (!isReplicant(currentTransactionDBName)) {
                             LOGGER.warn(String.format("non-replicated database %s in current transaction.",
@@ -863,21 +833,19 @@ public class PipelineOrchestrator extends Thread {
                             dropTransaction();
                             return true;
                         }
-//<<<<<<< HEAD
-
                         return false;
                     case DDLTABLE:
                         // DDL event should always contain db name
-                        String dbName = ((QueryEvent) event).getDatabaseName().toString();
+                        String dbName = ((RawBinlogEventQuery) event).getDatabaseName().toString();
                         if (dbName.length() == 0) {
-                            LOGGER.warn("No Db name in Query Event. Extracted SQL: " + ((QueryEvent) event).getSql().toString());
+                            LOGGER.warn("No Db name in Query Event. Extracted SQL: " + ((RawBinlogEventQuery) event).getSql().toString());
                         }
                         if (isReplicant(dbName)) {
                             // process event
                             return false;
                         }
                         // skip event
-                        LOGGER.warn("DDL statement " + ((QueryEvent) event).getSql() + " on non-replicated database: " + dbName + "");
+                        LOGGER.warn("DDL statement " + ((RawBinlogEventQuery) event).getSql() + " on non-replicated database: " + dbName + "");
                         return true;
                     case DDLVIEW:
                         // TODO: handle View statement
@@ -885,34 +853,8 @@ public class PipelineOrchestrator extends Thread {
                     case ANALYZE:
                         return true;
                     default:
-                        LOGGER.warn("Skipping event with unknown query type: " + ((QueryEvent) event).getSql());
+                        LOGGER.warn("Skipping event with unknown query type: " + ((RawBinlogEventQuery) event).getSql());
                         return false;
-//=======
-//                    } else {
-//                        LOGGER.warn(String.format(
-//                                "Received COMMIT event, but currentTransactionMetadata is empty! Tables in transaction are %s",
-//                                Joiner.on(", ").join(currentTransactionMetadata.getCurrentTransactionTableMapEvents().keySet())
-//                            )
-//                        );
-//                    }
-//                } else if (isBegin) {
-//                    eventIsTracked = true;
-//                } else if (isDDLTable) {
-//                   // DDL event should always contain db name
-//                   String dbName = ((RawBinlogEventQuery) event).getDatabaseName();
-//                   if ((dbName == null) || dbName.length() == 0) {
-//                       LOGGER.warn("No Db name in Query Event. Extracted SQL: " + ((RawBinlogEventQuery) event).getSql());
-//                   }
-//                   if (isReplicant(dbName)) {
-//                       eventIsTracked = true;
-//                   } else {
-//                       eventIsTracked = false;
-//                       LOGGER.warn("DDL statement " + querySQL + " on non-replicated database: " + dbName + "");
-//                   }
-//                } else {
-//                    // TODO: handle View statement
-//                    // LOGGER.warn("Received non-DDL, non-COMMIT, non-BEGIN query: " + querySQL);
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
                 }
 
             // TableMap event:

@@ -8,7 +8,6 @@ import com.booking.replication.pipeline.BinlogEventProducer;
 import com.booking.replication.pipeline.BinlogPositionInfo;
 import com.booking.replication.pipeline.PipelineOrchestrator;
 import com.booking.replication.pipeline.PipelinePosition;
-import com.booking.replication.queues.ReplicatorQueues;
 import com.booking.replication.replicant.MysqlReplicantPool;
 import com.booking.replication.replicant.ReplicantPool;
 
@@ -38,25 +37,16 @@ import java.util.concurrent.TimeUnit;
  */
 public class Replicator {
 
-//<<<<<<< HEAD
-    private final BinlogEventProducer  binlogEventProducer;
-    private final PipelineOrchestrator pipelineOrchestrator;
-    private final Overseer             overseer;
-    private final ReplicantPool replicantPool;
-    private final PipelinePosition     pipelinePosition;
-    private final ReplicatorHealthTrackerProxy healthTracker;
-//=======
-//    private final int                                 binlogParserProviderCode;
-//    private final LinkedBlockingQueue<RawBinlogEvent> rawBinlogEventQueue;
-//    private final BinlogEventProducer                 binlogEventProducer;
-//    private final PipelineOrchestrator                pipelineOrchestrator;
-//    private final Overseer                            overseer;
-//    private final ReplicantPool                       replicantPool;
-//    private final PipelinePosition                    pipelinePosition;
-//    private final ReplicatorHealthTrackerProxy        healthTracker;
+    private final int                                 binlogParserProviderCode;
+    private final LinkedBlockingQueue<RawBinlogEvent> rawBinlogEventQueue;
+    private final BinlogEventProducer                 binlogEventProducer;
+    private final PipelineOrchestrator                pipelineOrchestrator;
+    private final Overseer                            overseer;
+    private final ReplicantPool                       replicantPool;
+    private final PipelinePosition                    pipelinePosition;
+    private final ReplicatorHealthTrackerProxy        healthTracker;
 
-//    private static final int MAX_RAW_QUEUE_SIZE = Constants.MAX_RAW_QUEUE_SIZE;
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
+    private static final int MAX_RAW_QUEUE_SIZE = Constants.MAX_RAW_QUEUE_SIZE;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Replicator.class);
 
@@ -259,12 +249,8 @@ public class Replicator {
             rawBinlogEventQueue,
             pipelinePosition,
             configuration,
-//<<<<<<< HEAD
-                replicantPool
-//=======
-//            replicantPool,
-//            binlogParserProviderCode
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
+            replicantPool,
+            binlogParserProviderCode
         );
 
         // Validation service
@@ -301,26 +287,15 @@ public class Replicator {
             this.healthTracker.setTrackerImplementation(new ReplicatorHealthTrackerDummy());
         }
 
-//<<<<<<< HEAD
-        PipelineOrchestrator.setActiveSchemaVersion(new MysqlActiveSchemaVersion(configuration));
-        // Orchestrator
+
+        // Pipeline
         pipelineOrchestrator = new PipelineOrchestrator(
-                replicatorQueues,
-                pipelinePosition,
-                configuration,
-                applier,
-                replicantPool,
-                binlogEventProducer,
-                fakeMicrosecondCounter
-//=======
-//        // Pipeline
-//        pipelineOrchestrator = new PipelineOrchestrator(
-//            rawBinlogEventQueue,
-//            pipelinePosition,
-//            configuration,
-//            applier,
-//            replicantPool
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
+            rawBinlogEventQueue,
+            pipelinePosition,
+            configuration,
+            applier,
+            replicantPool,
+            fakeMicrosecondCounter
         );
 
         // Overseer
