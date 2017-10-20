@@ -290,6 +290,15 @@ public class Replicator {
         }
 
 
+        // TODO: add new params
+        //        LinkedBlockingQueue<RawBinlogEvent> rawBinlogEventQueue,
+        //        PipelinePosition pipelinePosition,
+        //        Configuration repcfg,
+        //        Applier applier,
+        //        ReplicantPool replicantPool,
+        //        BinlogEventProducer binlogEventProducer,
+        //        long fakeMicrosecondCounter,
+        //        boolean metricsEnabled
         // Pipeline
         pipelineOrchestrator = new PipelineOrchestrator(
             rawBinlogEventQueue,
@@ -297,7 +306,9 @@ public class Replicator {
             configuration,
             applier,
             replicantPool,
+                // TODO: BinlogEventProducer binlogEventProducer,
             fakeMicrosecondCounter
+                // TODO:  boolean metricsEnabled
         );
 
         // Overseer

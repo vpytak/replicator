@@ -38,7 +38,7 @@ public class CurrentTransaction {
     private boolean isRewinded = false;
 
     private TableMapEvent firstMapEventInTransaction = null;
-    private Queue<BinlogEventV4> events = new LinkedList<>();
+    private Queue<RawBinlogEvent> events = new LinkedList<>();
 
     private final Map<String, TableMapEvent> currentTransactionTableMapEvents = new HashMap<>();
 
@@ -147,7 +147,7 @@ public class CurrentTransaction {
         return (finishEvent != null);
     }
 
-    void addEvent(BinlogEventV4 event) {
+    void addEvent(RawBinlogEvent event) {
         events.add(event);
     }
 
@@ -155,7 +155,7 @@ public class CurrentTransaction {
         return (events.peek() != null);
     }
 
-    public Queue<BinlogEventV4> getEvents() {
+    public Queue<RawBinlogEvent> getEvents() {
         return events;
     }
 
@@ -179,8 +179,8 @@ public class CurrentTransaction {
     }
 
     void setEventsTimestamp(long timestamp) throws TransactionException {
-        for (BinlogEventV4 event : events) {
-            ((BinlogEventV4HeaderImpl) event.getHeader()).setTimestamp(timestamp);
+        for (RawBinlogEvent event : events) {
+           event.overrideTimestamp(timestamp);
         }
     }
 
