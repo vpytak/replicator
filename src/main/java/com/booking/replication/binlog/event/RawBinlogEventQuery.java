@@ -2,6 +2,7 @@ package com.booking.replication.binlog.event;
 
 import com.github.shyiko.mysql.binlog.event.QueryEventData;
 import com.google.code.or.binlog.StatusVariable;
+import com.google.code.or.binlog.impl.event.BinlogEventV4HeaderImpl;
 import com.google.code.or.binlog.impl.event.QueryEvent;
 import com.google.code.or.binlog.impl.variable.status.QTimeZoneCode;
 
@@ -76,5 +77,9 @@ public class RawBinlogEventQuery extends RawBinlogEvent {
             // TODO: bin log connector currently does not support status variables
             return sqlCommands;
         }
+    }
+
+    public void setTimestamp(long timestamp) {
+        this.overrideTimestamp(timestamp);
     }
 }

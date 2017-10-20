@@ -4,20 +4,22 @@ import com.booking.replication.applier.*;
 import com.booking.replication.binlog.event.RawBinlogEvent;
 import com.booking.replication.checkpoints.LastCommittedPositionCheckpoint;
 import com.booking.replication.monitor.*;
+
 import com.booking.replication.pipeline.BinlogEventProducer;
 import com.booking.replication.pipeline.BinlogPositionInfo;
 import com.booking.replication.pipeline.PipelineOrchestrator;
 import com.booking.replication.pipeline.PipelinePosition;
+
 import com.booking.replication.replicant.MysqlReplicantPool;
 import com.booking.replication.replicant.ReplicantPool;
 
-import com.booking.replication.schema.ActiveSchemaVersion;
-import com.booking.replication.schema.MysqlActiveSchemaVersion;
 import com.booking.replication.util.BinlogCoordinatesFinder;
 import com.booking.replication.validation.ValidationService;
+
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Counting;
 import com.codahale.metrics.Meter;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import spark.Spark;

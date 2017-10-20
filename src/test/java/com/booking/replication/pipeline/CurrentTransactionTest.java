@@ -1,5 +1,7 @@
 package com.booking.replication.pipeline;
 
+import com.booking.replication.binlog.event.RawBinlogEventQuery;
+import com.booking.replication.binlog.event.RawBinlogEventXid;
 import com.google.code.or.binlog.BinlogEventV4;
 import com.google.code.or.binlog.impl.event.BinlogEventV4HeaderImpl;
 import com.google.code.or.binlog.impl.event.QueryEvent;
@@ -32,12 +34,16 @@ public class CurrentTransactionTest {
 
     @Test
     public void createCurrentTransactionWithBeginEvent() throws Exception {
+
         QueryEvent queryEvent = new QueryEvent(new BinlogEventV4HeaderImpl());
         Constructor<StringColumn> stringColumnReflection = StringColumn.class.getDeclaredConstructor(byte[].class);
         stringColumnReflection.setAccessible(true);
         StringColumn stringColumn = stringColumnReflection.newInstance((Object) "BEGIN".getBytes());
         queryEvent.setSql(stringColumn);
+        // TODO: move the above to RawBinlogEventQuery, add method: createBinlogQueryEventForBegin()
+        RawBinlogEventQuery rawBinlogEventQuery = new RawBinlogEventQuery(queryEvent);
 
+        // TODO: change signature
         CurrentTransaction currentTransaction = new CurrentTransaction(queryEvent);
         assertTrue(currentTransaction.hasBeginEvent());
     }

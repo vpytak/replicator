@@ -10,12 +10,17 @@ import com.google.code.or.common.util.MySQLConstants;
  */
 public class RawBinlogEvent {
 
+    protected RawBinlogEventHeader rawEventHeader; // TODO: use this
+
     protected final int     BINLOG_PARSER_PROVIDER;
+    protected final boolean USING_DEPRECATED_PARSER;
+
     protected BinlogEventV4 binlogEventV4;
     protected Event         binlogConnectorEvent;
+
     protected long          timestampOfReceipt;
     protected long          timestampOfBinlogEvent;
-    protected final boolean USING_DEPRECATED_PARSER;
+
 
     public void setBinlogFilename(String binlogFilename) {
         this.binlogFilename = binlogFilename;
