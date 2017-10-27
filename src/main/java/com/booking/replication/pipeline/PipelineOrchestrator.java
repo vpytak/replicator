@@ -534,7 +534,7 @@ public class PipelineOrchestrator extends Thread {
 
                         // TODO: port currentTransaction to binlog connect
                         // RawBinlogEventTableMap firstMapEvent = currentTransactionMetadata.getFirstMapEventInTransaction();
-                        TableMapEvent firstMapEvent = currentTransaction.getFirstMapEventInTransaction();
+                        RawBinlogEventTableMap firstMapEvent = currentTransaction.getFirstMapEventInTransaction();
                         if (firstMapEvent == null) {
                             LOGGER.warn(String.format(
                                     "Received COMMIT event, but currentTransaction is empty! Tables in transaction are %s",

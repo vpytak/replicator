@@ -4,6 +4,7 @@ import com.booking.replication.Metrics;
 import com.booking.replication.applier.ApplierException;
 import com.booking.replication.augmenter.AugmentedRowsEvent;
 import com.booking.replication.binlog.event.RawBinlogEvent;
+import com.booking.replication.binlog.event.RawBinlogEventRows;
 import com.booking.replication.pipeline.CurrentTransaction;
 import com.booking.replication.pipeline.PipelineOrchestrator;
 import com.booking.replication.schema.exception.TableMapException;
@@ -32,16 +33,20 @@ public class WriteRowsEventHandler implements RawBinlogEventHandler {
     }
 
     @Override
-    public void apply(RawBinlogEvent binlogEventV4, CurrentTransaction currentTransaction) throws TableMapException, ApplierException, IOException {
-        final AbstractRowEvent event = (AbstractRowEvent) binlogEventV4;
-        AugmentedRowsEvent augmentedRowsEvent = eventHandlerConfiguration.getEventAugmenter().mapDataEventToSchema(event, currentTransaction);
+    public void apply(RawBinlogEvent rawBinlogEvent, CurrentTransaction currentTransaction) throws TableMapException, ApplierException, IOException {
+        final RawBinlogEventRows event = (RawBinlogEventRows) rawBinlogEvent;
+        AugmentedRowsEvent augmentedRowsEvent =
+                eventHandlerConfiguration.getEventAugmenter().mapDataEventToSchema(
+                        event,
+                        currentTransaction
+                );
         eventHandlerConfiguration.getApplier().applyAugmentedRowsEvent(augmentedRowsEvent, currentTransaction);
         counter.mark();
     }
 
     @Override
-    public void handle(RawBinlogEvent binlogEventV4) throws TransactionException, TransactionSizeLimitException {
-        final AbstractRowEvent event = (AbstractRowEvent) binlogEventV4;
+    public void handle(RawBinlogEvent rawBinlogEvent) throws TransactionException, TransactionSizeLimitException {
+        final RawBinlogEventRows event = (RawBinlogEventRows) rawBinlogEvent;
         pipelineOrchestrator.addEventIntoTransaction(event);
     }
 }

@@ -2,6 +2,7 @@ package com.booking.replication.pipeline.event.handler;
 
 import com.booking.replication.Metrics;
 import com.booking.replication.binlog.event.RawBinlogEvent;
+import com.booking.replication.binlog.event.RawBinlogEventXid;
 import com.booking.replication.pipeline.CurrentTransaction;
 import com.booking.replication.pipeline.PipelineOrchestrator;
 import com.codahale.metrics.Meter;
@@ -30,7 +31,7 @@ public class XidEventHandler implements RawBinlogEventHandler {
 
     @Override
     public void apply(RawBinlogEvent binlogEventV4, CurrentTransaction currentTransaction) throws EventHandlerApplyException {
-        final XidEvent event = (XidEvent) binlogEventV4;
+        final RawBinlogEventXid event = (RawBinlogEventXid) binlogEventV4;
         if (currentTransaction.getXid() != event.getXid()) {
             throw new EventHandlerApplyException("Xid of transaction doesn't match the current event xid: " + currentTransaction + ", " + event);
         }
@@ -40,7 +41,7 @@ public class XidEventHandler implements RawBinlogEventHandler {
 
     @Override
     public void handle(RawBinlogEvent binlogEventV4) throws TransactionException, TransactionSizeLimitException {
-        final XidEvent event = (XidEvent) binlogEventV4;
+        final RawBinlogEventXid event = (RawBinlogEventXid) binlogEventV4;
         // prepare trans data
         pipelineOrchestrator.commitTransaction(event);
     }

@@ -3,6 +3,7 @@ package com.booking.replication.pipeline.event.handler;
 import com.booking.replication.Constants;
 import com.booking.replication.Metrics;
 import com.booking.replication.binlog.event.RawBinlogEvent;
+import com.booking.replication.binlog.event.RawBinlogEventTableMap;
 import com.booking.replication.pipeline.CurrentTransaction;
 import com.booking.replication.pipeline.PipelineOrchestrator;
 import com.booking.replication.pipeline.PipelinePosition;
@@ -37,8 +38,8 @@ public class TableMapEventHandler implements RawBinlogEventHandler {
     }
 
     @Override
-    public void apply(RawBinlogEvent binlogEventV4, CurrentTransaction currentTransaction) throws EventHandlerApplyException, TableMapException {
-        final TableMapEvent event = (TableMapEvent) binlogEventV4;
+    public void apply(RawBinlogEvent rawBinlogEvent, CurrentTransaction currentTransaction) throws EventHandlerApplyException, TableMapException {
+        final RawBinlogEventTableMap event = (RawBinlogEventTableMap) rawBinlogEvent;
         String tableName = event.getTableName().toString();
 
         if (tableName.equals(Constants.HEART_BEAT_TABLE)) {
@@ -55,8 +56,8 @@ public class TableMapEventHandler implements RawBinlogEventHandler {
     }
 
     @Override
-    public void handle(RawBinlogEvent binlogEventV4) throws TransactionException, TransactionSizeLimitException {
-        final TableMapEvent event = (TableMapEvent) binlogEventV4;
+    public void handle(RawBinlogEvent rawBinlogEvent) throws TransactionException, TransactionSizeLimitException {
+        final RawBinlogEventTableMap event = (RawBinlogEventTableMap) rawBinlogEvent;
         pipelineOrchestrator.currentTransaction.updateCache(event);
         pipelineOrchestrator.addEventIntoTransaction(event);
     }

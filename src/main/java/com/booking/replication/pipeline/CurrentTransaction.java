@@ -1,10 +1,7 @@
 package com.booking.replication.pipeline;
 
 import com.booking.replication.binlog.EventPosition;
-import com.booking.replication.binlog.event.QueryEventType;
-import com.booking.replication.binlog.event.RawBinlogEvent;
-import com.booking.replication.binlog.event.RawBinlogEventQuery;
-import com.booking.replication.binlog.event.RawBinlogEventXid;
+import com.booking.replication.binlog.event.*;
 import com.booking.replication.pipeline.event.handler.TransactionException;
 import com.booking.replication.schema.exception.TableMapException;
 import com.booking.replication.sql.QueryInspector;
@@ -37,10 +34,10 @@ public class CurrentTransaction {
     private RawBinlogEvent finishEvent = null;
     private boolean isRewinded = false;
 
-    private TableMapEvent firstMapEventInTransaction = null;
+    private RawBinlogEventTableMap firstMapEventInTransaction = null;
     private Queue<RawBinlogEvent> events = new LinkedList<>();
 
-    private final Map<String, TableMapEvent> currentTransactionTableMapEvents = new HashMap<>();
+    private final Map<String, RawBinlogEventTableMap> currentTransactionTableMapEvents = new HashMap<>();
 
     public CurrentTransaction() {
     }
@@ -194,7 +191,7 @@ public class CurrentTransaction {
     /**
      * Update table map cache.
      */
-    public void updateCache(TableMapEvent event) {
+    public void updateCache(RawBinlogEventTableMap event) {
         LOGGER.debug("Updating cache. firstMapEventInTransaction: " + firstMapEventInTransaction + ", event: " + event);
         if (firstMapEventInTransaction == null) {
             firstMapEventInTransaction = event;
@@ -250,11 +247,11 @@ public class CurrentTransaction {
         isRewinded = rewinded;
     }
 
-    public TableMapEvent getTableMapEvent(String tableName) {
+    public RawBinlogEventTableMap getTableMapEvent(String tableName) {
         return currentTransactionTableMapEvents.get(tableName);
     }
 
-    public TableMapEvent getFirstMapEventInTransaction() {
+    public RawBinlogEventTableMap getFirstMapEventInTransaction() {
         return firstMapEventInTransaction;
     }
 
@@ -263,7 +260,7 @@ public class CurrentTransaction {
     }
 
 
-    Map<String, TableMapEvent> getCurrentTransactionTableMapEvents() {
+    Map<String, RawBinlogEventTableMap> getCurrentTransactionTableMapEvents() {
         return currentTransactionTableMapEvents;
     }
 
