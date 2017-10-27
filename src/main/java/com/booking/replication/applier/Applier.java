@@ -32,6 +32,8 @@ public interface Applier {
 
     void applyRotateEvent(RawBinlogEventRotate event) throws ApplierException, IOException;
 
+    void applyRotateEvent(RawBinlogEventRotate event) throws ApplierException, IOException;
+
     void applyAugmentedSchemaChangeEvent(
             AugmentedSchemaChangeEvent augmentedSchemaChangeEvent,
             PipelineOrchestrator caller);

@@ -6,10 +6,7 @@ import com.booking.replication.applier.hbase.HBaseApplierWriter;
 import com.booking.replication.applier.hbase.TaskBufferInconsistencyException;
 import com.booking.replication.augmenter.AugmentedRowsEvent;
 import com.booking.replication.augmenter.AugmentedSchemaChangeEvent;
-import com.booking.replication.binlog.event.RawBinlogEventFormatDescription;
-import com.booking.replication.binlog.event.RawBinlogEventRotate;
-import com.booking.replication.binlog.event.RawBinlogEventTableMap;
-import com.booking.replication.binlog.event.RawBinlogEventXid;
+import com.booking.replication.binlog.event.*;
 import com.booking.replication.checkpoints.LastCommittedPositionCheckpoint;
 import com.booking.replication.pipeline.CurrentTransaction;
 import com.booking.replication.pipeline.PipelineOrchestrator;
@@ -79,26 +76,20 @@ public class HBaseApplier implements Applier {
     }
 
     @Override
-    public void applyBeginQueryEvent(QueryEvent event, CurrentTransaction currentTransaction) {
+    public void applyBeginQueryEvent(RawBinlogEventQuery event, CurrentTransaction currentTransaction) {
     }
 
     @Override
-//<<<<<<< HEAD
-    public void applyCommitQueryEvent(QueryEvent event, CurrentTransaction currentTransaction) {
-//=======
-//    public void applyCommitQueryEvent() {
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
+    public void applyCommitQueryEvent(RawBinlogEventQuery event, CurrentTransaction currentTransaction) {
+        // TODO: remove unnecessary params
         markCurrentTransactionForCommit();
     }
 
     @Override
-//<<<<<<< HEAD
-    public void applyXidEvent(XidEvent event, CurrentTransaction currentTransaction) {
-//=======
-//    public void applyXidEvent(RawBinlogEventXid event) {
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
+    public void applyXidEvent(RawBinlogEventXid event, CurrentTransaction currentTransaction) {
         // TODO: add transactionID to storage
         // long transactionID = event.getXid();
+        // TODO: add transaction UUID to storage
         markCurrentTransactionForCommit();
     }
 

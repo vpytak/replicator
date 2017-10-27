@@ -3,6 +3,7 @@ package com.booking.replication.applier;
 import com.booking.replication.augmenter.AugmentedRowsEvent;
 import com.booking.replication.augmenter.AugmentedSchemaChangeEvent;
 //<<<<<<< HEAD
+import com.booking.replication.binlog.event.*;
 import com.booking.replication.pipeline.CurrentTransaction;
 //=======
 //import com.booking.replication.binlog.event.RawBinlogEventFormatDescription;
@@ -46,30 +47,20 @@ public class EventCountingApplier implements Applier {
     }
 
     @Override
-//<<<<<<< HEAD
-    public void applyBeginQueryEvent(QueryEvent event, CurrentTransaction currentTransaction) {
+    public void applyBeginQueryEvent(RawBinlogEventQuery event, CurrentTransaction currentTransaction) {
         wrapped.applyBeginQueryEvent(event, currentTransaction);
-//=======
-//    public void applyCommitQueryEvent() {
-//        wrapped.applyCommitQueryEvent();
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
         counter.inc();
     }
 
     @Override
-//<<<<<<< HEAD
-    public void applyCommitQueryEvent(QueryEvent event, CurrentTransaction currentTransaction) {
+    public void applyCommitQueryEvent(RawBinlogEventQuery event, CurrentTransaction currentTransaction) {
         wrapped.applyCommitQueryEvent(event, currentTransaction);
         counter.inc();
     }
 
     @Override
-    public void applyXidEvent(XidEvent event, CurrentTransaction currentTransaction) {
+    public void applyXidEvent(RawBinlogEventXid event, CurrentTransaction currentTransaction) {
         wrapped.applyXidEvent(event, currentTransaction);
-//=======
-//    public void applyXidEvent(RawBinlogEventXid event) {
-//        wrapped.applyXidEvent(event);
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
         counter.inc();
     }
 

@@ -10,6 +10,8 @@ import com.booking.replication.augmenter.AugmentedRow;
 import com.booking.replication.augmenter.AugmentedRowsEvent;
 import com.booking.replication.augmenter.AugmentedSchemaChangeEvent;
 //<<<<<<< HEAD
+import com.booking.replication.binlog.event.RawBinlogEventQuery;
+import com.booking.replication.binlog.event.RawBinlogEventXid;
 import com.booking.replication.pipeline.CurrentTransaction;
 import com.booking.replication.pipeline.PipelineOrchestrator;
 
@@ -179,7 +181,7 @@ public class KafkaApplier implements Applier {
     }
 
     @Override
-    public void applyBeginQueryEvent(QueryEvent event, CurrentTransaction currentTransaction) {
+    public void applyBeginQueryEvent(RawBinlogEventQuery event, CurrentTransaction currentTransaction) {
         if (!apply_begin_event) {
             LOGGER.debug("Dropping BEGIN event because applyBeginEvent is off");
             return;
@@ -189,7 +191,16 @@ public class KafkaApplier implements Applier {
 
         AugmentedRow augmentedRow;
         try {
-            augmentedRow = new AugmentedRow(event.getBinlogFilename(), 0, null, null, "BEGIN", event.getHeader(), currentTransaction.getUuid(), currentTransaction.getXid(), apply_uuid, apply_xid);
+            augmentedRow = new AugmentedRow(
+                    event.getBinlogFilename(),
+                    0, null, null, "BEGIN",
+                    currentTransaction.getUuid(),
+                    currentTransaction.getXid(),
+                    apply_uuid,
+                    apply_xid,
+                    event.getPosition(),
+                    event.getTimestamp()
+            );
         } catch (TableMapException e) {
             throw new RuntimeException("Failed to create AugmentedRow for BEGIN event: ", e);
         }
@@ -199,7 +210,7 @@ public class KafkaApplier implements Applier {
     }
 
     @Override
-    public void applyCommitQueryEvent(QueryEvent event, CurrentTransaction currentTransaction) {
+    public void applyCommitQueryEvent(RawBinlogEventQuery event, CurrentTransaction currentTransaction) {
         if (!apply_commit_event) {
             LOGGER.debug("Dropping COMMIT event because applyCommitEvent is off");
             return;
@@ -209,7 +220,15 @@ public class KafkaApplier implements Applier {
 
         AugmentedRow augmentedRow;
         try {
-            augmentedRow = new AugmentedRow(event.getBinlogFilename(), 0, null, null, "COMMIT", event.getHeader(), currentTransaction.getUuid(), currentTransaction.getXid(), apply_uuid, apply_xid);
+            augmentedRow = new AugmentedRow(
+                    event.getBinlogFilename(),
+                    0, null, null, "COMMIT",
+                    currentTransaction.getUuid(),
+                    currentTransaction.getXid(),
+                    apply_uuid, apply_xid,
+                    event.getPosition(),
+                    event.getTimestamp()
+            );
         } catch (TableMapException e) {
             throw new RuntimeException("Failed to create AugmentedRow for COMMIT event: ", e);
         }
@@ -219,7 +238,7 @@ public class KafkaApplier implements Applier {
     }
 
     @Override
-    public void applyXidEvent(XidEvent event, CurrentTransaction currentTransaction) {
+    public void applyXidEvent(RawBinlogEventXid event, CurrentTransaction currentTransaction) {
         if (!apply_commit_event) {
             LOGGER.debug("Dropping XID event because applyBeginEvent is off");
             return;
