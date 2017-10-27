@@ -2,6 +2,8 @@ package com.booking.replication.augmenter;
 
 import static com.codahale.metrics.MetricRegistry.name;
 
+import com.booking.replication.binlog.common.Cell;
+import com.booking.replication.binlog.event.*;
 import com.codahale.metrics.Counter;
 
 import com.booking.replication.Metrics;
@@ -147,58 +149,30 @@ public class EventAugmenter {
      * @param currentTransaction
      * @return AugmentedRowsEvent  AugmentedRow
      */
-//<<<<<<< HEAD
-    public AugmentedRowsEvent mapDataEventToSchema(AbstractRowEvent event, CurrentTransaction currentTransaction) throws TableMapException {
+    public AugmentedRowsEvent mapDataEventToSchema(RawBinlogEventRows event, CurrentTransaction currentTransaction) throws TableMapException {
 
         AugmentedRowsEvent au;
 
-        switch (event.getHeader().getEventType()) {
-
-            case MySQLConstants.UPDATE_ROWS_EVENT:
-                UpdateRowsEvent updateRowsEvent = ((UpdateRowsEvent) event);
+        switch (event.getEventType()) {
+            case UPDATE_ROWS_EVENT:
+                RawBinlogEventUpdateRows updateRowsEvent = ((RawBinlogEventUpdateRows) event);
                 au = augmentUpdateRowsEvent(updateRowsEvent, currentTransaction);
                 break;
-            case MySQLConstants.UPDATE_ROWS_EVENT_V2:
-                UpdateRowsEventV2 updateRowsEventV2 = ((UpdateRowsEventV2) event);
-                au = augmentUpdateRowsEventV2(updateRowsEventV2, currentTransaction);
-                break;
-            case MySQLConstants.WRITE_ROWS_EVENT:
-                WriteRowsEvent writeRowsEvent = ((WriteRowsEvent) event);
+
+            case WRITE_ROWS_EVENT:
+                RawBinlogEventWriteRows writeRowsEvent = ((RawBinlogEventWriteRows) event);
                 au = augmentWriteRowsEvent(writeRowsEvent, currentTransaction);
                 break;
-            case MySQLConstants.WRITE_ROWS_EVENT_V2:
-                WriteRowsEventV2 writeRowsEventV2 = ((WriteRowsEventV2) event);
-                au = augmentWriteRowsEventV2(writeRowsEventV2, currentTransaction);
-                break;
-            case MySQLConstants.DELETE_ROWS_EVENT:
-                DeleteRowsEvent deleteRowsEvent = ((DeleteRowsEvent) event);
+
+            case DELETE_ROWS_EVENT:
+                RawBinlogEventDeleteRows deleteRowsEvent = ((RawBinlogEventDeleteRows) event);
                 au = augmentDeleteRowsEvent(deleteRowsEvent, currentTransaction);
                 break;
-            case MySQLConstants.DELETE_ROWS_EVENT_V2:
-                DeleteRowsEventV2 deleteRowsEventV2 = ((DeleteRowsEventV2) event);
-                au = augmentDeleteRowsEventV2(deleteRowsEventV2, currentTransaction);
-                break;
-//=======
-//    public AugmentedRowsEvent mapDataEventToSchema(RawBinlogEventRows event, PipelineOrchestrator caller) throws TableMapException {
-//
-//        AugmentedRowsEvent au;
-//
-//        switch (event.getEventType()) {
-//            case UPDATE_ROWS_EVENT:
-//                RawBinlogEventUpdateRows updateRowsEvent = ((RawBinlogEventUpdateRows) event);
-//                au = augmentUpdateRowsEvent(updateRowsEvent, caller);
-//                break;
-//            case WRITE_ROWS_EVENT:
-//                RawBinlogEventWriteRows writeRowsEvent = ((RawBinlogEventWriteRows) event);
-//                au = augmentWriteRowsEvent(writeRowsEvent, caller);
-//                break;
-//            case DELETE_ROWS_EVENT:
-//                RawBinlogEventDeleteRows deleteRowsEvent = ((RawBinlogEventDeleteRows) event);
-//                au = augmentDeleteRowsEvent(deleteRowsEvent, caller);
-//                break;
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
+
             default:
-                throw new TableMapException("RBR event type expected! Received type: " + event.getEventType().toString(), event);
+                throw new TableMapException("RBR event type expected! Received type: " +
+                        event.getEventType().toString(), event
+                );
         }
 
         if (au == null) {
@@ -208,17 +182,10 @@ public class EventAugmenter {
         return au;
     }
 
-//<<<<<<< HEAD
-    private AugmentedRowsEvent augmentWriteRowsEvent(WriteRowsEvent writeRowsEvent, CurrentTransaction currentTransaction) throws TableMapException {
+    private AugmentedRowsEvent augmentWriteRowsEvent(RawBinlogEventWriteRows writeRowsEvent, CurrentTransaction currentTransaction) throws TableMapException {
 
         // table name
         String tableName =  currentTransaction.getTableNameFromID(writeRowsEvent.getTableId());
-//=======
-//    private AugmentedRowsEvent augmentWriteRowsEvent(RawBinlogEventWriteRows writeRowsEvent, PipelineOrchestrator caller) throws TableMapException {
-//
-//        // table name
-//        String tableName = caller.currentTransactionMetadata.getTableNameFromID(writeRowsEvent.getTableId());
-// >>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
 
         PerTableMetrics tableMetrics = PerTableMetrics.get(tableName);
 
@@ -237,7 +204,7 @@ public class EventAugmenter {
         // In write event there is only a List<ParsedRow> from getRows. No before after naturally.
 
         long rowBinlogEventOrdinal = 0; // order of the row in the binlog event
-        for (Row row : writeRowsEvent.getExtractedRows()) {
+        for (com.booking.replication.binlog.common.Row  row : writeRowsEvent.getExtractedRows()) {
 
             String evType = "INSERT";
             rowBinlogEventOrdinal++;
@@ -248,16 +215,12 @@ public class EventAugmenter {
                     tableName,
                     tableSchemaVersion,
                     evType,
-//<<<<<<< HEAD
-                    writeRowsEvent.getHeader(),
                     currentTransaction.getUuid(),
                     currentTransaction.getXid(),
                     applyUuid,
-                    applyXid
-//=======
-//                    writeRowsEvent.getPosition(),
-//                    writeRowsEvent.getTimestamp()
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
+                    applyXid,
+                    writeRowsEvent.getPosition(),
+                    writeRowsEvent.getTimestamp()
             );
 
             // add transaction uuid and xid
@@ -278,12 +241,15 @@ public class EventAugmenter {
                 ColumnSchema columnSchema = tableSchemaVersion.getColumnSchemaByColumnIndex(columnIndex);
 
                 // but here index goes from 0..
-//<<<<<<< HEAD
-                Column columnValue = row.getColumns().get(columnIndex - 1);
+                Cell columnValue = row.getRowCells().get(columnIndex - 1);
 
-                String value = Converter.orTypeToString(columnValue, columnSchema);
+                String value = Converter.cellValueToString(columnValue, columnSchema);
 
-                augEvent.addColumnDataForInsert(columnSchema.getColumnName(), value, columnSchema.getColumnType());
+                augEvent.addColumnDataForInsert(
+                        columnSchema.getColumnName(),
+                        value,
+                        columnSchema.getColumnType()
+                );
             }
             augEventGroup.addSingleRowEvent(augEvent);
         }
@@ -291,92 +257,8 @@ public class EventAugmenter {
         return augEventGroup;
     }
 
-    // TODO: refactor these functions since they are mostly the same. Also move to a different class.
-    // Same as for V1 write event. There is some extra data in V2, but not sure if we can use it.
-    private AugmentedRowsEvent augmentWriteRowsEventV2(
-            WriteRowsEventV2 writeRowsEvent,
-            CurrentTransaction currentTransaction) throws TableMapException {
 
-        // table name
-        String tableName = currentTransaction.getTableNameFromID(writeRowsEvent.getTableId());
-
-        PerTableMetrics tableMetrics = PerTableMetrics.get(tableName);
-
-        // getValue schema for that table from activeSchemaVersion
-        TableSchemaVersion tableSchemaVersion = activeSchemaVersion.getTableSchemaVersion(tableName);
-
-        // TODO: refactor
-        if (tableSchemaVersion == null) {
-            throw new TableMapException("Table schema not initialized for table " + tableName + ". Cant proceed.", writeRowsEvent);
-        }
-
-        int numberOfColumns = writeRowsEvent.getColumnCount().intValue();
-
-        AugmentedRowsEvent augEventGroup = new AugmentedRowsEvent(writeRowsEvent);
-        augEventGroup.setMysqlTableName(tableName);
-
-        long rowBinlogEventOrdinal = 0; // order of the row in the binlog event
-        for (Row row : writeRowsEvent.getRows()) {
-
-            String evType = "INSERT";
-            rowBinlogEventOrdinal++;
-
-            AugmentedRow augEvent = new AugmentedRow(
-                    augEventGroup.getBinlogFileName(),
-                    rowBinlogEventOrdinal,
-                    tableName,
-                    tableSchemaVersion,
-                    evType,
-                    writeRowsEvent.getHeader(),
-                    currentTransaction.getUuid(),
-                    currentTransaction.getXid(),
-                    applyUuid,
-                    applyXid
-            );
-
-            // add transaction uuid and xid
-            if (applyUuid) {
-                augEvent.addColumnDataForInsert(UUID_FIELD_NAME, currentTransaction.getUuid().toString(), "VARCHAR");
-            }
-            if (applyXid) {
-                augEvent.addColumnDataForInsert(XID_FIELD_NAME, String.valueOf(currentTransaction.getXid()), "BIGINT");
-            }
-
-            //column index counting starts with 1
-            for (int columnIndex = 1; columnIndex <= numberOfColumns ; columnIndex++ ) {
-
-                // We need schema for proper type casting
-                ColumnSchema columnSchema = tableSchemaVersion.getColumnSchemaByColumnIndex(columnIndex);
-
-                // but here index goes from 0..
-                Column columnValue = row.getColumns().get(columnIndex - 1);
-
-                // type cast
-                String value = Converter.orTypeToString(columnValue, columnSchema);
-//=======
-//                Cell columnValue = row.getRowCells().get(columnIndex - 1);
-//
-//                // We need schema for proper type casting
-//                ColumnSchema columnSchema = tableSchemaVersion.getColumnSchemaByColumnName(columnName);
-//
-//                String value = Converter.cellValueToString(columnValue, columnSchema);
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
-
-                augEvent.addColumnDataForInsert(columnSchema.getColumnName(), value, columnSchema.getColumnType());
-            }
-            augEventGroup.addSingleRowEvent(augEvent);
-        }
-
-        return augEventGroup;
-    }
-
-//<<<<<<< HEAD
-    private AugmentedRowsEvent augmentDeleteRowsEvent(DeleteRowsEvent deleteRowsEvent, CurrentTransaction currentTransaction)
-//=======
-//    // ===============================================================
-//    // TODO: move delete augmenting to new parser
-//    private AugmentedRowsEvent augmentDeleteRowsEvent(RawBinlogEventDeleteRows deleteRowsEvent, PipelineOrchestrator pipeline)
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
+    private AugmentedRowsEvent augmentDeleteRowsEvent(RawBinlogEventDeleteRows deleteRowsEvent, CurrentTransaction currentTransaction)
             throws TableMapException {
 
         // table name
@@ -397,7 +279,7 @@ public class EventAugmenter {
         int numberOfColumns = deleteRowsEvent.getColumnCount();
 
         long rowBinlogEventOrdinal = 0; // order of the row in the binlog event
-        for (Row row : deleteRowsEvent.getExtractedRows()) {
+        for (com.booking.replication.binlog.common.Row row : deleteRowsEvent.getExtractedRows()) {
 
             String evType =  "DELETE";
             rowBinlogEventOrdinal++;
@@ -407,16 +289,12 @@ public class EventAugmenter {
                     tableName,
                     tableSchemaVersion,
                     evType,
-//<<<<<<< HEAD
-                    deleteRowsEvent.getHeader(),
                     currentTransaction.getUuid(),
                     currentTransaction.getXid(),
                     applyUuid,
-                    applyXid
-//=======
-//                    deleteRowsEvent.getPosition(),
-//                    deleteRowsEvent.getTimestamp()
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
+                    applyXid,
+                    deleteRowsEvent.getPosition(),
+                    deleteRowsEvent.getTimestamp()
             );
 
             // add transaction uuid and xid
@@ -436,14 +314,7 @@ public class EventAugmenter {
                 // but here index goes from 0..
                 Cell cellValue = row.getRowCells().get(columnIndex - 1);
 
-//<<<<<<< HEAD
-                String value = Converter.orTypeToString(columnValue, columnSchema);
-//=======
-//                // We need schema for proper type casting
-//                ColumnSchema columnSchema = tableSchemaVersion.getColumnSchemaByColumnName(columnName);
-//
-//                String value = Converter.cellValueToString(cellValue, columnSchema);
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
+                String value = Converter.cellValueToString(cellValue, columnSchema);
 
                 augEvent.addColumnDataForInsert(columnSchema.getColumnName(), value, columnSchema.getColumnType());
             }
@@ -456,83 +327,7 @@ public class EventAugmenter {
         return augEventGroup;
     }
 
-//<<<<<<< HEAD
-    // For now this is the same as for V1 event.
-    private AugmentedRowsEvent augmentDeleteRowsEventV2(
-            DeleteRowsEventV2 deleteRowsEvent,
-            CurrentTransaction currentTransaction) throws TableMapException {
-        // table name
-        String tableName = currentTransaction.getTableNameFromID(deleteRowsEvent.getTableId());
-
-        PerTableMetrics tableMetrics = PerTableMetrics.get(tableName);
-
-        // getValue schema for that table from activeSchemaVersion
-        TableSchemaVersion tableSchemaVersion = activeSchemaVersion.getTableSchemaVersion(tableName);
-
-        // TODO: refactor
-        if (tableSchemaVersion == null) {
-            throw new TableMapException("Table schema not initialized for table " + tableName + ". Cant proceed.", deleteRowsEvent);
-        }
-
-        AugmentedRowsEvent augEventGroup = new AugmentedRowsEvent(deleteRowsEvent);
-        augEventGroup.setMysqlTableName(tableName);
-
-        int numberOfColumns = deleteRowsEvent.getColumnCount().intValue();
-
-        long rowBinlogEventOrdinal = 0; // order of the row in the binlog event
-        for (Row row : deleteRowsEvent.getRows()) {
-
-            String evType = "DELETE";
-            rowBinlogEventOrdinal++;
-
-            AugmentedRow augEvent = new AugmentedRow(
-                    augEventGroup.getBinlogFileName(),
-                    rowBinlogEventOrdinal,
-                    tableName,
-                    tableSchemaVersion,
-                    evType,
-                    deleteRowsEvent.getHeader(),
-                    currentTransaction.getUuid(),
-                    currentTransaction.getXid(),
-                    applyUuid,
-                    applyXid
-            );
-
-            // add transaction uuid and xid
-            if (applyUuid) {
-                augEvent.addColumnDataForInsert(UUID_FIELD_NAME, currentTransaction.getUuid().toString(), "VARCHAR");
-            }
-            if (applyXid) {
-                augEvent.addColumnDataForInsert(XID_FIELD_NAME, String.valueOf(currentTransaction.getXid()), "BIGINT");
-            }
-
-            //column index counting starts with 1
-            for (int columnIndex = 1; columnIndex <= numberOfColumns ; columnIndex++ ) {
-
-                // We need schema for proper type casting
-                ColumnSchema columnSchema = tableSchemaVersion.getColumnSchemaByColumnIndex(columnIndex);
-
-                // but here index goes from 0..
-                Column columnValue = row.getColumns().get(columnIndex - 1);
-
-                String value = Converter.orTypeToString(columnValue, columnSchema);
-
-                // TODO: delete has same content as insert, but add a differently named method for clarity
-                augEvent.addColumnDataForInsert(columnSchema.getColumnName(), value, columnSchema.getColumnType());
-            }
-            augEventGroup.addSingleRowEvent(augEvent);
-
-            tableMetrics.deleted.inc();
-            tableMetrics.processed.inc();
-        }
-
-        return augEventGroup;
-    }
-
-    private AugmentedRowsEvent augmentUpdateRowsEvent(UpdateRowsEvent upEvent, CurrentTransaction currentTransaction) throws TableMapException {
-//=======
-//    private AugmentedRowsEvent augmentUpdateRowsEvent(RawBinlogEventUpdateRows upEvent, PipelineOrchestrator caller) throws TableMapException {
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
+    private AugmentedRowsEvent augmentUpdateRowsEvent(RawBinlogEventUpdateRows upEvent, CurrentTransaction currentTransaction) throws TableMapException {
 
         // table name
         String tableName = currentTransaction.getTableNameFromID(upEvent.getTableId());
@@ -542,7 +337,6 @@ public class EventAugmenter {
         // getValue schema for that table from activeSchemaVersion
         TableSchemaVersion tableSchemaVersion = activeSchemaVersion.getTableSchemaVersion(tableName);
 
-        // TODO: refactor
         if (tableSchemaVersion == null) {
             throw new TableMapException("Table schema not initialized for table " + tableName + ". Cant proceed.", upEvent);
         }
@@ -555,23 +349,23 @@ public class EventAugmenter {
         long rowBinlogEventOrdinal = 0; // order of the row in the binlog event
 
         // rowPair is pair <rowBeforeChange, rowAfterChange>
-        for (RowPair rowPair : upEvent.getExtractedRows()) {
+        for (com.booking.replication.binlog.common.RowPair rowPair : upEvent.getExtractedRows()) {
 
             String evType = "UPDATE";
             rowBinlogEventOrdinal++;
 
             AugmentedRow augEvent = new AugmentedRow(
-//<<<<<<< HEAD
                     augEventGroup.getBinlogFileName(),
                     rowBinlogEventOrdinal,
                     tableName,
                     tableSchemaVersion,
                     evType,
-                    upEvent.getHeader(),
                     currentTransaction.getUuid(),
                     currentTransaction.getXid(),
                     applyUuid,
-                    applyXid
+                    applyXid,
+                    upEvent.getPosition(),
+                    upEvent.getTimestamp()
             );
 
             // add transaction uuid and xid
@@ -582,19 +376,7 @@ public class EventAugmenter {
                 augEvent.addColumnDataForUpdate(XID_FIELD_NAME, null, String.valueOf(currentTransaction.getXid()), "BIGINT");
             }
 
-            //column index counting starts with 1
-//=======
-//                augEventGroup.getBinlogFileName(),
-//                rowBinlogEventOrdinal,
-//                tableName,
-//                tableSchemaVersion,
-//                evType,
-//                upEvent.getPosition(),
-//                upEvent.getTimestamp()
-//            );
-//
-//            //column index counting starts with 1 for name tracking
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
+            //column index counting starts with 1 for name tracking
             for (int columnIndex = 1; columnIndex <= numberOfColumns ; columnIndex++ ) {
 
                 // We need schema for proper type casting; Since this is RowChange event, schema
@@ -605,21 +387,17 @@ public class EventAugmenter {
                 Cell cellValueBefore = rowPair.getBefore().getRowCells().get(columnIndex - 1);
                 Cell cellValueAfter = rowPair.getAfter().getRowCells().get(columnIndex - 1);
 
-// <<<<<<< HEAD
-                String valueBefore = Converter.orTypeToString(columnValueBefore, columnSchema);
-                String valueAfter  = Converter.orTypeToString(columnValueAfter, columnSchema);
-// =======
-//                // We need schema for proper type casting; Since this is RowChange event, schema
-//                // is the same for both before and after states
-//                ColumnSchema columnSchema = tableSchemaVersion.getColumnSchemaByColumnName(columnName);
-//
-//                String valueBefore = Converter.cellValueToString(cellValueBefore, columnSchema);
-//                String valueAfter  = Converter.cellValueToString(cellValueAfter, columnSchema);
-// >>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
+                String valueBefore = Converter.cellValueToString(cellValueBefore, columnSchema);
+                String valueAfter  = Converter.cellValueToString(cellValueAfter, columnSchema);
 
                 String columnType  = columnSchema.getColumnType();
 
-                augEvent.addColumnDataForUpdate(columnSchema.getColumnName(), valueBefore, valueAfter, columnType);
+                augEvent.addColumnDataForUpdate(
+                        columnSchema.getColumnName(),
+                        valueBefore,
+                        valueAfter,
+                        columnType
+                );
             }
             augEventGroup.addSingleRowEvent(augEvent);
 
@@ -630,94 +408,6 @@ public class EventAugmenter {
         return augEventGroup;
     }
 
-//<<<<<<< HEAD
-    // For now this is the same as V1. Not sure if the extra info in V2 can be of use to us.
-    private AugmentedRowsEvent augmentUpdateRowsEventV2(UpdateRowsEventV2 upEvent, CurrentTransaction currentTransaction) throws TableMapException {
-
-        // table name
-        String tableName = currentTransaction.getTableNameFromID(upEvent.getTableId());
-
-        PerTableMetrics tableMetrics = PerTableMetrics.get(tableName);
-
-        // getValue schema for that table from activeSchemaVersion
-        TableSchemaVersion tableSchemaVersion = activeSchemaVersion.getTableSchemaVersion(tableName);
-
-        // TODO: refactor
-        if (tableSchemaVersion == null) {
-            throw new TableMapException("Table schema not initialized for table " + tableName + ". Cant proceed.", upEvent);
-        }
-
-        AugmentedRowsEvent augEventGroup = new AugmentedRowsEvent(upEvent);
-        augEventGroup.setMysqlTableName(tableName);
-
-        int numberOfColumns = upEvent.getColumnCount().intValue();
-
-        long rowBinlogEventOrdinal = 0; // order of the row in the binlog event
-
-        // rowPair is pair <rowBeforeChange, rowAfterChange>
-        for (Pair<Row> rowPair : upEvent.getRows()) {
-
-            String evType = "UPDATE";
-            rowBinlogEventOrdinal++;
-
-            AugmentedRow augEvent = new AugmentedRow(
-                    augEventGroup.getBinlogFileName(),
-                    rowBinlogEventOrdinal,
-                    tableName,
-                    tableSchemaVersion,
-                    evType,
-                    upEvent.getHeader(),
-                    currentTransaction.getUuid(),
-                    currentTransaction.getXid(),
-                    applyUuid,
-                    applyXid
-            );
-
-            // add transaction uuid and xid
-            if (applyUuid) {
-                augEvent.addColumnDataForUpdate(UUID_FIELD_NAME, null, currentTransaction.getUuid().toString(), "VARCHAR");
-            }
-            if (applyXid) {
-                augEvent.addColumnDataForUpdate(XID_FIELD_NAME, null, String.valueOf(currentTransaction.getXid()), "BIGINT");
-            }
-
-            //column index counting starts with 1
-            for (int columnIndex = 1; columnIndex <= numberOfColumns ; columnIndex++ ) {
-
-                // We need schema for proper type casting
-                ColumnSchema columnSchema = tableSchemaVersion.getColumnSchemaByColumnIndex(columnIndex);
-
-                if (columnSchema == null) {
-                    LOGGER.error("null columnScheme for { columnIndex => " + columnIndex + ", tableName => " + tableName + " }" );
-                    throw new TableMapException("columnName cant be null", upEvent);
-                }
-
-                // but here index goes from 0..
-                Column columnValueBefore = rowPair.getBefore().getColumns().get(columnIndex - 1);
-                Column columnValueAfter = rowPair.getAfter().getColumns().get(columnIndex - 1);
-
-                try {
-                    String valueBefore = Converter.orTypeToString(columnValueBefore, columnSchema);
-                    String valueAfter  = Converter.orTypeToString(columnValueAfter, columnSchema);
-                    String columnType  = columnSchema.getColumnType();
-
-                    augEvent.addColumnDataForUpdate(columnSchema.getColumnName(), valueBefore, valueAfter, columnType);
-                } catch (TableMapException e) {
-                    TableMapException rethrow = new TableMapException(e.getMessage(), upEvent);
-                    rethrow.setStackTrace(e.getStackTrace());
-                    throw rethrow;
-                }
-            }
-            augEventGroup.addSingleRowEvent(augEvent);
-
-            tableMetrics.processed.inc();
-            tableMetrics.updated.inc();
-        }
-        return augEventGroup;
-    }
-
-//=======
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
     private static class PerTableMetrics {
         private static String prefix = "mysql";
         private static Map<String, PerTableMetrics> tableMetricsHash = new CaseInsensitiveMap<>();

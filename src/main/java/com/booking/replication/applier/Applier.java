@@ -3,6 +3,7 @@ package com.booking.replication.applier;
 import com.booking.replication.augmenter.AugmentedRowsEvent;
 import com.booking.replication.augmenter.AugmentedSchemaChangeEvent;
 //<<<<<<< HEAD
+import com.booking.replication.binlog.event.*;
 import com.booking.replication.pipeline.CurrentTransaction;
 //=======
 //import com.booking.replication.binlog.event.RawBinlogEventFormatDescription;
@@ -23,16 +24,11 @@ public interface Applier {
             throws ApplierException, IOException;
 
 //<<<<<<< HEAD
-    void applyBeginQueryEvent(QueryEvent event, CurrentTransaction currentTransaction);
+    void applyBeginQueryEvent(RawBinlogEventQuery event, CurrentTransaction currentTransaction);
 
-    void applyCommitQueryEvent(QueryEvent event, CurrentTransaction currentTransaction);
+    void applyCommitQueryEvent(RawBinlogEventQuery event, CurrentTransaction currentTransaction);
 
-    void applyXidEvent(XidEvent event, CurrentTransaction currentTransaction);
-//=======
-//    void applyCommitQueryEvent();
-//
-//    void applyXidEvent(RawBinlogEventXid event);
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
+    void applyXidEvent(RawBinlogEventXid event, CurrentTransaction currentTransaction);
 
     void applyRotateEvent(RawBinlogEventRotate event) throws ApplierException, IOException;
 

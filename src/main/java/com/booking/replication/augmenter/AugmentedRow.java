@@ -37,14 +37,13 @@ public class AugmentedRow {
 
     private String       rowUUID;
     private String       rowBinlogPositionID;
-//<<<<<<< HEAD
+
     private UUID         transactionUUID;
     private Long         transactionXid;
     private boolean      applyUuid = false;
     private boolean      applyXid = false;
-//=======
-//    private Long         rowBinlogPositionTimestamp; // TODO: replace with commit_time when feature is ready
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
+
+    private Long         rowBinlogPositionTimestamp; // TODO: replace with commit_time when feature is ready
 
     // eventColumns: {
     //          column_name  => $name,
@@ -77,37 +76,32 @@ public class AugmentedRow {
             String              binlogFileName,
             long                rowOrdinal,
             String              tableName,
-            TableSchemaVersion tableSchemaVersion,
+            TableSchemaVersion  tableSchemaVersion,
             String              eventType,
-//<<<<<<< HEAD
-            BinlogEventV4Header binlogEventV4Header,
             UUID                transactionUUID,
             Long                transactionXid,
-            boolean applyUuid,
-            boolean applyXid)  throws TableMapException {
-//=======
-//            Long eventPosition,
-//            Long rowBinlogPositionTimestamp)  throws TableMapException {
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
+            boolean             applyUuid,
+            boolean             applyXid,
+            Long                eventPosition,
+            Long                rowBinlogPositionTimestamp
+    )  throws TableMapException {
 
         this.rowBinlogEventOrdinal = rowOrdinal;
         this.binlogFileName = binlogFileName;
         this.tableName = tableName;
         this.eventType = eventType;
-//<<<<<<< HEAD
-        this.eventV4Header = binlogEventV4Header;
         this.transactionUUID = transactionUUID;
         this.transactionXid = transactionXid;
         this.applyUuid = applyUuid;
         this.applyXid = applyXid;
-//=======
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
 
         if (tableName != null && tableSchemaVersion != null) initTableSchema(tableSchemaVersion);
 
         rowBinlogPositionID = String.format("%s:%020d:%020d", this.binlogFileName, eventPosition, this.rowBinlogEventOrdinal);
         rowUUID = UUID.randomUUID().toString();
-        this.rowBinlogPositionTimestamp = rowBinlogEventOrdinal;
+
+        // TODO: commit_timestamp!!!
+        this.rowBinlogPositionTimestamp = rowBinlogPositionTimestamp;
     }
 
     public Long getRowBinlogPositionTimestamp() {
