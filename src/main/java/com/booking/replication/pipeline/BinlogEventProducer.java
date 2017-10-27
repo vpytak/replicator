@@ -5,6 +5,7 @@ import static com.codahale.metrics.MetricRegistry.name;
 import com.booking.replication.Configuration;
 import com.booking.replication.Constants;
 import com.booking.replication.Metrics;
+import com.booking.replication.binlog.EventPosition;
 import com.codahale.metrics.MetricRegistry;
 
 import com.booking.replication.binlog.common.Row;
@@ -42,9 +43,9 @@ public class BinlogEventProducer {
 
     private final BlockingQueue<RawBinlogEvent> rawBinlogEventQueue;
 
-    private final PipelinePosition pipelinePosition;
+    private PipelinePosition pipelinePosition;
 
-    private final Object           binlogEventParserProvider;
+    private Object           binlogEventParserProvider;
 
     private final int              BINLOG_EVENT_PARSER_PROVIDER_CODE;
 
@@ -359,5 +360,37 @@ public class BinlogEventProducer {
         else {
             throw new Exception("Unsupported parser exception");
         }
+    }
+
+    public void rewindHead(String binlogFilename, long binlogPosition) throws Exception {
+
+        PipelinePosition newPipelinePosition = new PipelinePosition(
+                pipelinePosition.getCurrentReplicantHostName(), // does not change during rewind
+                pipelinePosition.getCurrentReplicantServerID(), // does not change during rewind
+                binlogFilename,
+                binlogPosition,
+                pipelinePosition.getLastSafeCheckPointPosition().getBinlogFilename(), // does not change during rewind
+                pipelinePosition.getLastSafeCheckPointPosition().getBinlogPosition() // dones not change during rewind
+        );
+
+        restartFromPosition(newPipelinePosition);
+    }
+
+    private void restartFromPosition(PipelinePosition newPipelinePosition) throws Exception {
+
+        this.stopAndClearQueue(10000, TimeUnit.MILLISECONDS);
+
+        this.pipelinePosition = newPipelinePosition;
+
+        // create new binlog producer from the new pipelinePosition
+        this.binlogEventParserProvider =
+                BinlogEventParserProviderFactory.getBinlogEventParserProvider(
+                        serverId,
+                        BINLOG_EVENT_PARSER_PROVIDER_CODE,
+                        configuration,
+                        pipelinePosition
+                );
+
+        this.start();
     }
 }

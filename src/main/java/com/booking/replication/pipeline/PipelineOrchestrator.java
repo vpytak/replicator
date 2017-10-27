@@ -671,11 +671,12 @@ public class PipelineOrchestrator extends Thread {
 
         // set binlog pos to begin pos, start openReplicator and apply the xid data to all events
         try {
-            // TODO: figure out how to do this with binlog connector. Move to BinlogEventProducer class
-            binlogEventProducer.stopAndClearQueue(10000, TimeUnit.MILLISECONDS);
-            binlogEventProducer.setBinlogFileName(EventPosition.getEventBinlogFileName(beginEvent));
-            binlogEventProducer.setBinlogPosition(EventPosition.getEventBinlogNextPosition(beginEvent));
-            binlogEventProducer.start();
+
+           binlogEventProducer.rewindHead(
+                   EventPosition.getEventBinlogFileName(beginEvent),
+                   EventPosition.getEventBinlogNextPosition(beginEvent)
+           );
+
         } catch (Exception e) {
             throw new BinlogEventProducerException("Can't stop binlogEventProducer to rewind a stream to the end of a transaction: ");
         }

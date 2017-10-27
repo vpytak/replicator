@@ -48,6 +48,8 @@ public class Replicator {
     private final PipelinePosition                    pipelinePosition;
     private final ReplicatorHealthTrackerProxy        healthTracker;
 
+    private final boolean metricsEnabled = true; // TODO: move to configuration
+
     private static final int MAX_RAW_QUEUE_SIZE = Constants.MAX_RAW_QUEUE_SIZE;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Replicator.class);
@@ -289,16 +291,6 @@ public class Replicator {
             this.healthTracker.setTrackerImplementation(new ReplicatorHealthTrackerDummy());
         }
 
-
-        // TODO: add new params
-        //        LinkedBlockingQueue<RawBinlogEvent> rawBinlogEventQueue,
-        //        PipelinePosition pipelinePosition,
-        //        Configuration repcfg,
-        //        Applier applier,
-        //        ReplicantPool replicantPool,
-        //        BinlogEventProducer binlogEventProducer,
-        //        long fakeMicrosecondCounter,
-        //        boolean metricsEnabled
         // Pipeline
         pipelineOrchestrator = new PipelineOrchestrator(
             rawBinlogEventQueue,
@@ -306,12 +298,14 @@ public class Replicator {
             configuration,
             applier,
             replicantPool,
-                // TODO: BinlogEventProducer binlogEventProducer,
-            fakeMicrosecondCounter
-                // TODO:  boolean metricsEnabled
+            binlogEventProducer,
+            fakeMicrosecondCounter,
+            metricsEnabled
         );
 
         // Overseer
+        // TODO: remove, obsolete since healthchecks have been added we relay
+        //       on container orchestration to do the restarts
         overseer = new Overseer(
                 binlogEventProducer,
                 pipelineOrchestrator,
