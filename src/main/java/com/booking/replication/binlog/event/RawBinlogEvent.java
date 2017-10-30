@@ -86,12 +86,7 @@ public class RawBinlogEvent {
     // but the millisecond part is actually 000 (for example 1447755881000)
     // TODO: verify that this is the same in Binlog Connector
     public long getTimestamp() {
-        if (binlogEventV4 != null) {
-            return binlogEventV4.getHeader().getTimestamp();
-        }
-        else {
-            return binlogConnectorEvent.getHeader().getTimestamp();
-        }
+        return this.timestampOfBinlogEvent;
     }
 
     public String getBinlogFilename() {

@@ -82,7 +82,9 @@ public class CurrentTransactionTest {
         assertEquals(0, currentTransaction.getEventsCounter());
 
         for (int i=0; i<5; i++) {
-            currentTransaction.addEvent(new RawBinlogEventQuery(new QueryEvent()));
+            QueryEvent queryEvent = new QueryEvent(new BinlogEventV4HeaderImpl());
+            RawBinlogEventQuery rawBinlogEventQuery = new RawBinlogEventQuery(queryEvent);
+            currentTransaction.addEvent(rawBinlogEventQuery);
         }
         assertEquals(5, currentTransaction.getEventsCounter());
     }
@@ -92,7 +94,9 @@ public class CurrentTransactionTest {
         CurrentTransaction currentTransaction = new CurrentTransaction();
         assertEquals(0, currentTransaction.getEventsCounter());
         for (int i=0; i<5; i++) {
-            currentTransaction.addEvent(new RawBinlogEventQuery(new QueryEvent()));
+            QueryEvent queryEvent = new QueryEvent(new BinlogEventV4HeaderImpl());
+            RawBinlogEventQuery rawBinlogEventQuery = new RawBinlogEventQuery(queryEvent);
+            currentTransaction.addEvent(rawBinlogEventQuery);
         }
         assertEquals(5, currentTransaction.getEventsCounter());
 
@@ -117,6 +121,7 @@ public class CurrentTransactionTest {
         }
 
         currentTransaction.setEventsTimestamp(Long.MAX_VALUE);
+
         for (RawBinlogEvent event: currentTransaction.getEvents()) {
             assertEquals(Long.MAX_VALUE, event.getTimestamp());
         }
