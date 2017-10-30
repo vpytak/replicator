@@ -257,9 +257,10 @@ public class CurrentTransaction {
     }
 
     boolean hasMappingInTransaction() {
-        return firstMapEventInTransaction != null;
+        return (firstMapEventInTransaction != null)
+                && (firstMapEventInTransaction.getDatabaseName() != null)
+                && (firstMapEventInTransaction.getTableName() != null);
     }
-
 
     Map<String, RawBinlogEventTableMap> getCurrentTransactionTableMapEvents() {
         return currentTransactionTableMapEvents;
