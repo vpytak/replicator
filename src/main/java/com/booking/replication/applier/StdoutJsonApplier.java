@@ -4,19 +4,21 @@ import com.booking.replication.Configuration;
 import com.booking.replication.augmenter.AugmentedRow;
 import com.booking.replication.augmenter.AugmentedRowsEvent;
 import com.booking.replication.augmenter.AugmentedSchemaChangeEvent;
-//<<<<<<< HEAD
+
+import com.booking.replication.binlog.event.*;
 import com.booking.replication.pipeline.CurrentTransaction;
-//=======
-//import com.booking.replication.binlog.event.RawBinlogEventFormatDescription;
-//import com.booking.replication.binlog.event.RawBinlogEventRotate;
-//import com.booking.replication.binlog.event.RawBinlogEventTableMap;
-//import com.booking.replication.binlog.event.RawBinlogEventXid;
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
+
+import com.booking.replication.binlog.event.RawBinlogEventFormatDescription;
+import com.booking.replication.binlog.event.RawBinlogEventRotate;
+import com.booking.replication.binlog.event.RawBinlogEventTableMap;
+import com.booking.replication.binlog.event.RawBinlogEventXid;
+
 import com.booking.replication.pipeline.PipelineOrchestrator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -38,11 +40,8 @@ public class StdoutJsonApplier implements Applier  {
     public StdoutJsonApplier(Configuration configuration) {}
 
     @Override
-//<<<<<<< HEAD
-    public void applyXidEvent(XidEvent event, CurrentTransaction currentTransaction) {
-//=======
-//    public void applyXidEvent(RawBinlogEventXid event) {
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
+    public void applyXidEvent(RawBinlogEventXid event, CurrentTransaction currentTransaction) {
+
         if (VERBOSE) {
             for (String table : stats.keySet()) {
                 LOGGER.info("XID Event, current stats: { table => " + table + ", rows => " + stats.get(table));
@@ -121,18 +120,15 @@ public class StdoutJsonApplier implements Applier  {
     }
 
     @Override
-//<<<<<<< HEAD
-    public void applyBeginQueryEvent(QueryEvent event, CurrentTransaction currentTransaction) {
+    public void applyBeginQueryEvent(RawBinlogEventQuery event, CurrentTransaction currentTransaction) {
         if (VERBOSE) {
             LOGGER.info("BEGIN");
         }
     }
 
     @Override
-    public void applyCommitQueryEvent(QueryEvent event, CurrentTransaction currentTransaction) {
-//=======
-//    public void applyCommitQueryEvent() {
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
+    public void applyCommitQueryEvent(RawBinlogEventQuery event, CurrentTransaction currentTransaction) {
+
         if (VERBOSE) {
             LOGGER.info("COMMIT");
             for (String table : stats.keySet()) {
@@ -160,6 +156,7 @@ public class StdoutJsonApplier implements Applier  {
     public void forceFlush() {
         LOGGER.info("force flush");
     }
+
 
     @Override
     public void applyRotateEvent(RawBinlogEventRotate event) {
