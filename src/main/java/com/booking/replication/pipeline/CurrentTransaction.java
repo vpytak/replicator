@@ -138,8 +138,9 @@ public class CurrentTransaction {
     }
 
     boolean hasBeginEvent() {
-        return (beginEvent != null);
+        return ((beginEvent != null) && (beginEvent.getSql().equals("BEGIN")));
     }
+
     boolean hasFinishEvent() {
         return (finishEvent != null);
     }

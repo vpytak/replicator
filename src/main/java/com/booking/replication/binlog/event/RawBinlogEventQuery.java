@@ -5,6 +5,7 @@ import com.google.code.or.binlog.StatusVariable;
 import com.google.code.or.binlog.impl.event.BinlogEventV4HeaderImpl;
 import com.google.code.or.binlog.impl.event.QueryEvent;
 import com.google.code.or.binlog.impl.variable.status.QTimeZoneCode;
+import com.google.code.or.common.glossary.column.StringColumn;
 
 import java.util.HashMap;
 
@@ -22,6 +23,17 @@ public class RawBinlogEventQuery extends RawBinlogEvent {
         }
         else {
             return ((QueryEventData) this.getBinlogConnectorEvent().getData()).getSql();
+        }
+    }
+
+    public void setSql(String sql) {
+        if (USING_DEPRECATED_PARSER) {
+            ((QueryEvent) this.getBinlogEventV4()).setSql(
+                    StringColumn.valueOf(sql.getBytes())
+            );
+        }
+        else {
+            ((QueryEventData) this.getBinlogConnectorEvent().getData()).setSql(sql);
         }
     }
 

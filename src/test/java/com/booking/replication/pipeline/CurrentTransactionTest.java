@@ -32,39 +32,43 @@ public class CurrentTransactionTest {
         assertEquals(Long.MAX_VALUE, currentTransaction.getXid());
     }
 
+
+    // TODO: add same test for binlog connector
     @Test
     public void createCurrentTransactionWithBeginEvent() throws Exception {
 
-        QueryEvent queryEvent = new QueryEvent(new BinlogEventV4HeaderImpl());
-        Constructor<StringColumn> stringColumnReflection = StringColumn.class.getDeclaredConstructor(byte[].class);
-        stringColumnReflection.setAccessible(true);
-        StringColumn stringColumn = stringColumnReflection.newInstance((Object) "BEGIN".getBytes());
-        queryEvent.setSql(stringColumn);
-        // TODO: move the above to RawBinlogEventQuery, add method: createBinlogQueryEventForBegin()
-        RawBinlogEventQuery rawBinlogEventQuery = new RawBinlogEventQuery(queryEvent);
-
-        // TODO: change signature
+        RawBinlogEventQuery queryEvent = new RawBinlogEventQuery(
+                new QueryEvent(new BinlogEventV4HeaderImpl())
+        );
+        queryEvent.setSql("BEGIN");
         CurrentTransaction currentTransaction = new CurrentTransaction(queryEvent);
         assertTrue(currentTransaction.hasBeginEvent());
     }
 
+    // TODO: add the same test for binlog connector
     @Test
     public void setFinishEvent() throws Exception {
         XidEvent xidEvent = new XidEvent(new BinlogEventV4HeaderImpl());
+        RawBinlogEventXid rawBinlogEventXid = new RawBinlogEventXid(xidEvent);
+
         CurrentTransaction currentTransaction = new CurrentTransaction();
-        currentTransaction.setFinishEvent(xidEvent);
+        currentTransaction.setFinishEvent(rawBinlogEventXid);
+
+        assertTrue(currentTransaction.hasFinishEvent());
+        assertNotNull(currentTransaction.getFinishEvent());
     }
 
     @Test
     public void setFinishEvent1() throws Exception {
+
         QueryEvent queryEvent = new QueryEvent(new BinlogEventV4HeaderImpl());
-        Constructor<StringColumn> stringColumnReflection = StringColumn.class.getDeclaredConstructor(byte[].class);
-        stringColumnReflection.setAccessible(true);
-        StringColumn stringColumn = stringColumnReflection.newInstance((Object) "COMMIT".getBytes());
-        queryEvent.setSql(stringColumn);
+        RawBinlogEventQuery rawBinlogEventQuery = new RawBinlogEventQuery(queryEvent);
+
+        rawBinlogEventQuery.setSql("COMMIT");
 
         CurrentTransaction currentTransaction = new CurrentTransaction();
-        currentTransaction.setFinishEvent(queryEvent);
+        currentTransaction.setFinishEvent(rawBinlogEventQuery);
+
         assertTrue(currentTransaction.hasFinishEvent());
         assertNotNull(currentTransaction.getFinishEvent());
     }

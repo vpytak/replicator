@@ -64,17 +64,14 @@ public class Overseer extends Thread {
     }
 
     private void makeSureProducerIsRunning() {
-//<<<<<<< HEAD
+
         // TODO: merge into health-checker class
-        if (producer.getOpenReplicator().isRunning()) {
+        if (producer.isRunning()) {
             failCounter = 0;
             return;
         }
 
         if (failCounter >= MAX_FAILS) {
-//=======
-//        if (!producer.isRunning()) {
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
             LOGGER.error("Producer stopped running at pipeline position: "
                     + pipelinePosition.getCurrentPosition().getBinlogFilename()
                     + ":"
@@ -84,5 +81,6 @@ public class Overseer extends Thread {
             pipelineOrchestrator.requestReplicatorShutdown();
         }
         failCounter++;
+        
     }
 }
