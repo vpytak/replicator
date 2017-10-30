@@ -298,7 +298,9 @@ public class PipelineOrchestratorTest {
         Method method = pipelineOrchestrator.getClass().getDeclaredMethod("waitForEvent", long.class, long.class);
         method.setAccessible(true);
         final RawBinlogEvent[] events = new RawBinlogEvent[1];
-        RawBinlogEvent queryEvent = new RawBinlogEvent(new BinlogEventV4HeaderImpl());
+        RawBinlogEvent queryEvent = new RawBinlogEvent(
+                new QueryEvent(new BinlogEventV4HeaderImpl())
+        );
 
         Thread pipelineThread = new Thread(() -> {
             try {
