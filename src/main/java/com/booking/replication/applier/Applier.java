@@ -23,14 +23,11 @@ public interface Applier {
     void applyAugmentedRowsEvent(AugmentedRowsEvent augmentedSingleRowEvent, CurrentTransaction currentTransaction)
             throws ApplierException, IOException;
 
-//<<<<<<< HEAD
     void applyBeginQueryEvent(RawBinlogEventQuery event, CurrentTransaction currentTransaction);
 
     void applyCommitQueryEvent(RawBinlogEventQuery event, CurrentTransaction currentTransaction);
 
     void applyXidEvent(RawBinlogEventXid event, CurrentTransaction currentTransaction);
-
-    void applyRotateEvent(RawBinlogEventRotate event) throws ApplierException, IOException;
 
     void applyRotateEvent(RawBinlogEventRotate event) throws ApplierException, IOException;
 
