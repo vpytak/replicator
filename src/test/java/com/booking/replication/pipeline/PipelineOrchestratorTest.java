@@ -110,37 +110,77 @@ public class PipelineOrchestratorTest {
         assertTrue(pipelineOrchestrator.isInTransaction());
     }
 
+    // TODO: the same for binlog connector
     @Test
     public void beginTransactionQueryEvent() throws Exception {
 
-        QueryEvent queryEvent = new QueryEvent(new BinlogEventV4HeaderImpl());
+        RawBinlogEventQuery queryEvent = new RawBinlogEventQuery(
+                new QueryEvent(new BinlogEventV4HeaderImpl())
+        );
 
-        Constructor<StringColumn> stringColumnReflection = StringColumn.class.getDeclaredConstructor(byte[].class);
-        stringColumnReflection.setAccessible(true);
-        StringColumn stringColumn = stringColumnReflection.newInstance((Object) "BEGIN".getBytes());
-        queryEvent.setSql(stringColumn);
+        queryEvent.setSql("BEGIN");
 
-        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(rawBinlogEventLinkedBlockingQueue, pipelinePosition, configuration, applier, replicantPool, binlogEventProducer, 0L, false);
+        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(
+                rawBinlogEventLinkedBlockingQueue,
+                pipelinePosition,
+                configuration,
+                applier,
+                replicantPool,
+                binlogEventProducer,
+                0L,
+                false
+        );
+
         assertFalse(pipelineOrchestrator.isInTransaction());
+
         pipelineOrchestrator.beginTransaction(queryEvent);
+
         assertTrue(pipelineOrchestrator.isInTransaction());
     }
 
+    // TODO: the same for binlog connector
     @Test
     public void addEventIntoTransaction() throws Exception {
-        WriteRowsEventV2 queryEvent = new WriteRowsEventV2(new BinlogEventV4HeaderImpl());
 
-        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(rawBinlogEventLinkedBlockingQueue, pipelinePosition, configuration, applier, replicantPool, binlogEventProducer, 0L, false);
+        RawBinlogEventRows queryEvent = new RawBinlogEventRows(
+                new WriteRowsEventV2(new BinlogEventV4HeaderImpl())
+        );
+
+        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(
+                rawBinlogEventLinkedBlockingQueue,
+                pipelinePosition,
+                configuration,
+                applier,
+                replicantPool,
+                binlogEventProducer,
+                0L,
+                false
+        );
+
         pipelineOrchestrator.beginTransaction();
 
         assertFalse(pipelineOrchestrator.getCurrentTransaction().hasEvents());
+
         pipelineOrchestrator.addEventIntoTransaction(queryEvent);
+
         assertTrue(pipelineOrchestrator.getCurrentTransaction().hasEvents());
     }
 
+    // TODO: the same for binlog connector
     @Test(expected = TransactionSizeLimitException.class)
     public void TransactionSizeLimitExceeded() throws Exception {
-        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(rawBinlogEventLinkedBlockingQueue, pipelinePosition, configuration, applier, replicantPool, binlogEventProducer, 0L, false);
+
+        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(
+                rawBinlogEventLinkedBlockingQueue,
+                pipelinePosition,
+                configuration,
+                applier,
+                replicantPool,
+                binlogEventProducer,
+                0L,
+                false
+        );
+
         Field orchestratorConfigurationField= pipelineOrchestrator.getClass().getDeclaredField("orchestratorConfiguration");
         orchestratorConfigurationField.setAccessible(true);
         Configuration.OrchestratorConfiguration orchestratorConfiguration = (Configuration.OrchestratorConfiguration) orchestratorConfigurationField.get(pipelineOrchestrator);
@@ -148,8 +188,11 @@ public class PipelineOrchestratorTest {
         pipelineOrchestrator.beginTransaction();
 
         assertFalse(pipelineOrchestrator.getCurrentTransaction().hasEvents());
+
         for (int i = 0; i < orchestratorConfiguration.getRewindingThreshold() + 2; i++) {
-            WriteRowsEventV2 queryEvent = new WriteRowsEventV2(new BinlogEventV4HeaderImpl());
+            RawBinlogEventRows queryEvent = new RawBinlogEventRows(
+                    new WriteRowsEventV2(new BinlogEventV4HeaderImpl())
+            );
             pipelineOrchestrator.addEventIntoTransaction(queryEvent);
         }
     }
@@ -172,19 +215,35 @@ public class PipelineOrchestratorTest {
         assertFalse(pipelineOrchestrator.isInTransaction());
     }
 
+    // TODO: the same for binlog connector
     @Test
     public void commitTransactionQueryEvent() throws Exception {
-        QueryEvent queryEvent = new QueryEvent(new BinlogEventV4HeaderImpl());
-        Constructor<StringColumn> stringColumnReflection = StringColumn.class.getDeclaredConstructor(byte[].class);
-        stringColumnReflection.setAccessible(true);
-        StringColumn stringColumn = stringColumnReflection.newInstance((Object) "COMMIT".getBytes());
-        queryEvent.setSql(stringColumn);
-        ((BinlogEventV4HeaderImpl) queryEvent.getHeader()).setEventType(MySQLConstants.QUERY_EVENT);
 
-        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(rawBinlogEventLinkedBlockingQueue, pipelinePosition, configuration, applier, replicantPool, binlogEventProducer, 0L, false);
+        BinlogEventV4HeaderImpl commitEventHeader = new BinlogEventV4HeaderImpl();
+        commitEventHeader.setEventType(MySQLConstants.QUERY_EVENT);
+
+        RawBinlogEventQuery queryEvent = new RawBinlogEventQuery(
+                new QueryEvent(commitEventHeader)
+        );
+
+        queryEvent.setSql("COMMIT");
+
+        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(
+                rawBinlogEventLinkedBlockingQueue,
+                pipelinePosition,
+                configuration,
+                applier,
+                replicantPool,
+                binlogEventProducer,
+                0L,
+                false
+        );
+
         assertFalse(pipelineOrchestrator.isInTransaction());
+
         pipelineOrchestrator.beginTransaction();
         assertTrue(pipelineOrchestrator.isInTransaction());
+
         pipelineOrchestrator.commitTransaction(queryEvent);
         assertFalse(pipelineOrchestrator.isInTransaction());
     }
