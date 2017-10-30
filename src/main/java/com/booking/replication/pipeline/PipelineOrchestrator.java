@@ -12,10 +12,8 @@ import com.booking.replication.augmenter.EventAugmenter;
 import com.booking.replication.binlog.EventPosition;
 import com.booking.replication.checkpoints.LastCommittedPositionCheckpoint;
 import com.booking.replication.pipeline.event.handler.*;
-import com.booking.replication.binlog.common.*;
-import com.booking.replication.binlog.event.*;
 
-import com.booking.replication.checkpoints.LastCommittedPositionCheckpoint;
+import com.booking.replication.binlog.event.*;
 
 import com.booking.replication.replicant.ReplicantPool;
 import com.booking.replication.schema.ActiveSchemaVersion;
@@ -25,16 +23,8 @@ import com.booking.replication.sql.QueryInspector;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
-import com.google.code.or.binlog.BinlogEventV4;
-import com.google.code.or.binlog.impl.event.*;
-import com.google.code.or.common.util.MySQLConstants;
-import com.google.common.base.Joiner;
-import com.booking.replication.sql.exception.QueryInspectorException;
 import com.google.common.base.Joiner;
 
-import com.codahale.metrics.Gauge;
-import com.codahale.metrics.Meter;
-import com.codahale.metrics.MetricRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,7 +59,6 @@ public class PipelineOrchestrator extends Thread {
     private static final Meter eventsSkippedCounter = Metrics.registry.meter(name("events", "eventsSkippedCounter"));
     private static final Meter eventsRewindedCounter = Metrics.registry.meter(name("events", "eventsRewindedCounter"));
 
-//<<<<<<< HEAD
     private static final int BUFFER_FLUSH_INTERVAL = 30000; // <- force buffer flush every 30 sec
     private static final int DEFAULT_VERSIONS_FOR_MIRRORED_TABLES = 1000;
     private static final long QUEUE_POLL_TIMEOUT = 100L;

@@ -3,8 +3,9 @@ package com.booking.replication.pipeline;
 import com.booking.replication.Configuration;
 import com.booking.replication.applier.Applier;
 import com.booking.replication.applier.DummyApplier;
+import com.booking.replication.binlog.event.BinlogEventParserProviderCode;
+import com.booking.replication.binlog.event.RawBinlogEvent;
 import com.booking.replication.pipeline.event.handler.TransactionSizeLimitException;
-import com.booking.replication.queues.ReplicatorQueues;
 import com.booking.replication.replicant.DummyReplicantPool;
 import com.booking.replication.replicant.ReplicantPool;
 import com.booking.replication.schema.DummyActiveSchemaVersion;
@@ -29,7 +30,6 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import static org.junit.Assert.*;
@@ -41,14 +41,25 @@ import static org.junit.Assert.*;
 public class PipelineOrchestratorTest {
     private static String[] args = new String[1];
 
-    private static ReplicatorQueues replicatorQueues = new ReplicatorQueues();
-    private static BlockingQueue<BinlogEventV4> queue = new LinkedBlockingQueue<>();
-    private static PipelinePosition pipelinePosition = new PipelinePosition("localhost", 12345, "binlog.000001", 4L, "binlog.000001", 4L);
+    private static LinkedBlockingQueue<RawBinlogEvent>
+            rawBinlogEventLinkedBlockingQueue = new LinkedBlockingQueue<>();
+
+    private static LinkedBlockingQueue<RawBinlogEvent>
+            rawBinlogEventLinkedBlockingQueue2 = new  LinkedBlockingQueue<>();
+
+    private static PipelinePosition pipelinePosition = new PipelinePosition(
+            "localhost",
+            12345,
+            "binlog.000001",
+            4L,
+            "binlog.000001",
+            4L
+    );
+
     private static Configuration configuration;
     private static Applier applier = new DummyApplier();
     private static ReplicantPool replicantPool = new DummyReplicantPool();
     private BinlogEventProducer binlogEventProducer;
-
 
     private static void configure() throws IOException {
         String configName = "sampleConfiguration.yaml";
@@ -66,30 +77,50 @@ public class PipelineOrchestratorTest {
         PipelineOrchestrator.setActiveSchemaVersion(new DummyActiveSchemaVersion());
     }
 
+    // TODO: add the same for binlog connector
     @Before
     public void setUp() throws Exception {
         if (configuration != null) return;
         configure();
-        binlogEventProducer = new BinlogEventProducer(queue, pipelinePosition, configuration, replicantPool);
+        binlogEventProducer = new BinlogEventProducer(
+                rawBinlogEventLinkedBlockingQueue2,
+                pipelinePosition,
+                configuration,
+                replicantPool,
+                BinlogEventParserProviderCode.OR
+        );
     }
 
     @Test
     public void beginTransactionManual() throws Exception {
-        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(replicatorQueues, pipelinePosition, configuration, applier, replicantPool, binlogEventProducer, 0L, false);
+
+        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(
+                rawBinlogEventLinkedBlockingQueue,
+                pipelinePosition,
+                configuration,
+                applier,
+                replicantPool,
+                binlogEventProducer,
+                0L,
+                false
+        );
+
         assertFalse(pipelineOrchestrator.isInTransaction());
+
         pipelineOrchestrator.beginTransaction();
         assertTrue(pipelineOrchestrator.isInTransaction());
     }
 
     @Test
     public void beginTransactionQueryEvent() throws Exception {
+        
         QueryEvent queryEvent = new QueryEvent(new BinlogEventV4HeaderImpl());
         Constructor<StringColumn> stringColumnReflection = StringColumn.class.getDeclaredConstructor(byte[].class);
         stringColumnReflection.setAccessible(true);
         StringColumn stringColumn = stringColumnReflection.newInstance((Object) "BEGIN".getBytes());
         queryEvent.setSql(stringColumn);
 
-        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(replicatorQueues, pipelinePosition, configuration, applier, replicantPool, binlogEventProducer, 0L, false);
+        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(rawBinlogEventLinkedBlockingQueue, pipelinePosition, configuration, applier, replicantPool, binlogEventProducer, 0L, false);
         assertFalse(pipelineOrchestrator.isInTransaction());
         pipelineOrchestrator.beginTransaction(queryEvent);
         assertTrue(pipelineOrchestrator.isInTransaction());
@@ -99,7 +130,7 @@ public class PipelineOrchestratorTest {
     public void addEventIntoTransaction() throws Exception {
         WriteRowsEventV2 queryEvent = new WriteRowsEventV2(new BinlogEventV4HeaderImpl());
 
-        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(replicatorQueues, pipelinePosition, configuration, applier, replicantPool, binlogEventProducer, 0L, false);
+        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(rawBinlogEventLinkedBlockingQueue, pipelinePosition, configuration, applier, replicantPool, binlogEventProducer, 0L, false);
         pipelineOrchestrator.beginTransaction();
 
         assertFalse(pipelineOrchestrator.getCurrentTransaction().hasEvents());
@@ -109,7 +140,7 @@ public class PipelineOrchestratorTest {
 
     @Test(expected = TransactionSizeLimitException.class)
     public void TransactionSizeLimitExceeded() throws Exception {
-        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(replicatorQueues, pipelinePosition, configuration, applier, replicantPool, binlogEventProducer, 0L, false);
+        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(rawBinlogEventLinkedBlockingQueue, pipelinePosition, configuration, applier, replicantPool, binlogEventProducer, 0L, false);
         Field orchestratorConfigurationField= pipelineOrchestrator.getClass().getDeclaredField("orchestratorConfiguration");
         orchestratorConfigurationField.setAccessible(true);
         Configuration.OrchestratorConfiguration orchestratorConfiguration = (Configuration.OrchestratorConfiguration) orchestratorConfigurationField.get(pipelineOrchestrator);
@@ -125,7 +156,7 @@ public class PipelineOrchestratorTest {
 
     @Test
     public void isInTransaction() throws Exception {
-        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(replicatorQueues, pipelinePosition, configuration, applier, replicantPool, binlogEventProducer, 0L, false);
+        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(rawBinlogEventLinkedBlockingQueue, pipelinePosition, configuration, applier, replicantPool, binlogEventProducer, 0L, false);
         assertFalse(pipelineOrchestrator.isInTransaction());
         pipelineOrchestrator.beginTransaction();
         assertTrue(pipelineOrchestrator.isInTransaction());
@@ -133,7 +164,7 @@ public class PipelineOrchestratorTest {
 
     @Test
     public void commitTransactionManual() throws Exception {
-        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(replicatorQueues, pipelinePosition, configuration, applier, replicantPool, binlogEventProducer, 0L, false);
+        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(rawBinlogEventLinkedBlockingQueue, pipelinePosition, configuration, applier, replicantPool, binlogEventProducer, 0L, false);
         assertFalse(pipelineOrchestrator.isInTransaction());
         pipelineOrchestrator.beginTransaction();
         assertTrue(pipelineOrchestrator.isInTransaction());
@@ -150,7 +181,7 @@ public class PipelineOrchestratorTest {
         queryEvent.setSql(stringColumn);
         ((BinlogEventV4HeaderImpl) queryEvent.getHeader()).setEventType(MySQLConstants.QUERY_EVENT);
 
-        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(replicatorQueues, pipelinePosition, configuration, applier, replicantPool, binlogEventProducer, 0L, false);
+        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(rawBinlogEventLinkedBlockingQueue, pipelinePosition, configuration, applier, replicantPool, binlogEventProducer, 0L, false);
         assertFalse(pipelineOrchestrator.isInTransaction());
         pipelineOrchestrator.beginTransaction();
         assertTrue(pipelineOrchestrator.isInTransaction());
@@ -163,7 +194,7 @@ public class PipelineOrchestratorTest {
         XidEvent xidEvent = new XidEvent(new BinlogEventV4HeaderImpl());
         ((BinlogEventV4HeaderImpl) xidEvent.getHeader()).setEventType(MySQLConstants.XID_EVENT);
 
-        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(replicatorQueues, pipelinePosition, configuration, applier, replicantPool, binlogEventProducer, 0L, false);
+        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(rawBinlogEventLinkedBlockingQueue, pipelinePosition, configuration, applier, replicantPool, binlogEventProducer, 0L, false);
         assertFalse(pipelineOrchestrator.isInTransaction());
         pipelineOrchestrator.beginTransaction();
         assertTrue(pipelineOrchestrator.isInTransaction());
@@ -173,7 +204,7 @@ public class PipelineOrchestratorTest {
 
     @Test(timeout=1000)
     public void waitForEvent() throws Exception {
-        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(replicatorQueues, pipelinePosition, configuration, applier, replicantPool, binlogEventProducer, 0L, false);
+        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(rawBinlogEventLinkedBlockingQueue, pipelinePosition, configuration, applier, replicantPool, binlogEventProducer, 0L, false);
         pipelineOrchestrator.setRunning(true);
         Method method = pipelineOrchestrator.getClass().getDeclaredMethod("waitForEvent", long.class, long.class);
         method.setAccessible(true);
@@ -192,7 +223,7 @@ public class PipelineOrchestratorTest {
 
         pipelineThread.start();
         assertNull(events[0]);
-        replicatorQueues.rawQueue.add(queryEvent);
+        rawBinlogEventLinkedBlockingQueue.rawQueue.add(queryEvent);
         while (events[0] == null) {
             Thread.sleep(20);
         }
@@ -202,7 +233,7 @@ public class PipelineOrchestratorTest {
 
     @Test
     public void rewindToCommitEventQueryEvent() throws Exception {
-        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(replicatorQueues, pipelinePosition, configuration, applier, replicantPool, binlogEventProducer, 0L, false);
+        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(rawBinlogEventLinkedBlockingQueue, pipelinePosition, configuration, applier, replicantPool, binlogEventProducer, 0L, false);
         pipelineOrchestrator.setRunning(true);
         Method method = pipelineOrchestrator.getClass().getDeclaredMethod("rewindToCommitEvent", long.class, long.class);
         method.setAccessible(true);
@@ -227,9 +258,9 @@ public class PipelineOrchestratorTest {
         pipelineThread.start();
         assertNull(events[0]);
         for (int i = 0; i < 20; i++) {
-            replicatorQueues.rawQueue.add(new WriteRowsEventV2(new BinlogEventV4HeaderImpl()));
+            rawBinlogEventLinkedBlockingQueue.rawQueue.add(new WriteRowsEventV2(new BinlogEventV4HeaderImpl()));
         }
-        replicatorQueues.rawQueue.add(commitEvent);
+        rawBinlogEventLinkedBlockingQueue.rawQueue.add(commitEvent);
         while (events[0] == null) {
             Thread.sleep(5);
         }
@@ -239,7 +270,7 @@ public class PipelineOrchestratorTest {
 
     @Test
     public void rewindToCommitEventXidEvent() throws Exception {
-        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(replicatorQueues, pipelinePosition, configuration, applier, replicantPool, binlogEventProducer, 0L, false);
+        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(rawBinlogEventLinkedBlockingQueue, pipelinePosition, configuration, applier, replicantPool, binlogEventProducer, 0L, false);
         pipelineOrchestrator.setRunning(true);
         Method method = pipelineOrchestrator.getClass().getDeclaredMethod("rewindToCommitEvent", long.class, long.class);
         method.setAccessible(true);
@@ -260,9 +291,9 @@ public class PipelineOrchestratorTest {
         pipelineThread.start();
         assertNull(events[0]);
         for (int i = 0; i < 20; i++) {
-            replicatorQueues.rawQueue.add(new WriteRowsEventV2(new BinlogEventV4HeaderImpl()));
+            rawBinlogEventLinkedBlockingQueue.rawQueue.add(new WriteRowsEventV2(new BinlogEventV4HeaderImpl()));
         }
-        replicatorQueues.rawQueue.add(commitEvent);
+        rawBinlogEventLinkedBlockingQueue.rawQueue.add(commitEvent);
         while (events[0] == null) {
             Thread.sleep(5);
         }
