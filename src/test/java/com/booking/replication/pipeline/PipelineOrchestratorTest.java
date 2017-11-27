@@ -73,7 +73,6 @@ public class PipelineOrchestratorTest {
         configuration = mapper.readValue(in, com.booking.replication.Configuration.class);
         configuration.loadStartupParameters(startupParameters);
 
-        PipelineOrchestrator.setActiveSchemaVersion(new DummyActiveSchemaVersion());
     }
 
     // TODO: add the same for binlog connector
@@ -97,6 +96,7 @@ public class PipelineOrchestratorTest {
                 rawBinlogEventLinkedBlockingQueue,
                 pipelinePosition,
                 configuration,
+                new DummyActiveSchemaVersion(),
                 applier,
                 replicantPool,
                 binlogEventProducer,
@@ -124,6 +124,7 @@ public class PipelineOrchestratorTest {
                 rawBinlogEventLinkedBlockingQueue,
                 pipelinePosition,
                 configuration,
+                new DummyActiveSchemaVersion(),
                 applier,
                 replicantPool,
                 binlogEventProducer,
@@ -150,6 +151,7 @@ public class PipelineOrchestratorTest {
                 rawBinlogEventLinkedBlockingQueue,
                 pipelinePosition,
                 configuration,
+                new DummyActiveSchemaVersion(),
                 applier,
                 replicantPool,
                 binlogEventProducer,
@@ -174,6 +176,7 @@ public class PipelineOrchestratorTest {
                 rawBinlogEventLinkedBlockingQueue,
                 pipelinePosition,
                 configuration,
+                new DummyActiveSchemaVersion(),
                 applier,
                 replicantPool,
                 binlogEventProducer,
@@ -199,7 +202,17 @@ public class PipelineOrchestratorTest {
 
     @Test
     public void isInTransaction() throws Exception {
-        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(rawBinlogEventLinkedBlockingQueue, pipelinePosition, configuration, applier, replicantPool, binlogEventProducer, 0L, false);
+        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(
+                rawBinlogEventLinkedBlockingQueue,
+                pipelinePosition,
+                configuration,
+                new DummyActiveSchemaVersion(),
+                applier,
+                replicantPool,
+                binlogEventProducer,
+                0L,
+                false
+        );
         assertFalse(pipelineOrchestrator.isInTransaction());
         pipelineOrchestrator.beginTransaction();
         assertTrue(pipelineOrchestrator.isInTransaction());
@@ -207,7 +220,17 @@ public class PipelineOrchestratorTest {
 
     @Test
     public void commitTransactionManual() throws Exception {
-        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(rawBinlogEventLinkedBlockingQueue, pipelinePosition, configuration, applier, replicantPool, binlogEventProducer, 0L, false);
+        PipelineOrchestrator pipelineOrchestrator = new PipelineOrchestrator(
+                rawBinlogEventLinkedBlockingQueue,
+                pipelinePosition,
+                configuration,
+                new DummyActiveSchemaVersion(),
+                applier,
+                replicantPool,
+                binlogEventProducer,
+                0L,
+                false
+        );
         assertFalse(pipelineOrchestrator.isInTransaction());
         pipelineOrchestrator.beginTransaction();
         assertTrue(pipelineOrchestrator.isInTransaction());
@@ -232,6 +255,7 @@ public class PipelineOrchestratorTest {
                 rawBinlogEventLinkedBlockingQueue,
                 pipelinePosition,
                 configuration,
+                new DummyActiveSchemaVersion(),
                 applier,
                 replicantPool,
                 binlogEventProducer,
@@ -262,6 +286,7 @@ public class PipelineOrchestratorTest {
                 rawBinlogEventLinkedBlockingQueue,
                 pipelinePosition,
                 configuration,
+                new DummyActiveSchemaVersion(),
                 applier,
                 replicantPool,
                 binlogEventProducer,
@@ -286,6 +311,7 @@ public class PipelineOrchestratorTest {
                 rawBinlogEventLinkedBlockingQueue,
                 pipelinePosition,
                 configuration,
+                new DummyActiveSchemaVersion(),
                 applier,
                 replicantPool,
                 binlogEventProducer,
@@ -328,6 +354,7 @@ public class PipelineOrchestratorTest {
                 rawBinlogEventLinkedBlockingQueue,
                 pipelinePosition,
                 configuration,
+                new DummyActiveSchemaVersion(),
                 applier,
                 replicantPool,
                 binlogEventProducer,
@@ -379,6 +406,7 @@ public class PipelineOrchestratorTest {
                 rawBinlogEventLinkedBlockingQueue,
                 pipelinePosition,
                 configuration,
+                new DummyActiveSchemaVersion(),
                 applier,
                 replicantPool,
                 binlogEventProducer,
