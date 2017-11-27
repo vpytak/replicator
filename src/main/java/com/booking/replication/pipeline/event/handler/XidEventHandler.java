@@ -30,19 +30,27 @@ public class XidEventHandler implements RawBinlogEventHandler {
 
 
     @Override
-    public void apply(RawBinlogEvent binlogEventV4, CurrentTransaction currentTransaction) throws EventHandlerApplyException {
-        final RawBinlogEventXid event = (RawBinlogEventXid) binlogEventV4;
-        if (currentTransaction.getXid() != event.getXid()) {
-            throw new EventHandlerApplyException("Xid of transaction doesn't match the current event xid: " + currentTransaction + ", " + event);
+    public void apply(RawBinlogEvent rawBinlogEvent, CurrentTransaction currentTransaction) throws EventHandlerApplyException {
+        if (rawBinlogEvent instanceof  RawBinlogEventXid) {
+            final RawBinlogEventXid event = (RawBinlogEventXid) rawBinlogEvent;
+            if (currentTransaction.getXid() != event.getXid()) {
+                throw new EventHandlerApplyException("Xid of transaction doesn't match the current event xid: " + currentTransaction + ", " + event);
+            }
+            eventHandlerConfiguration.getApplier().applyXidEvent(event, currentTransaction);
+            counter.mark();
+        } else {
+            throw new EventHandlerApplyException("Expected event of type RawBinlogEventXid, insted got " + rawBinlogEvent.getClass().toString());
         }
-        eventHandlerConfiguration.getApplier().applyXidEvent(event, currentTransaction);
-        counter.mark();
     }
 
     @Override
-    public void handle(RawBinlogEvent binlogEventV4) throws TransactionException, TransactionSizeLimitException {
-        final RawBinlogEventXid event = (RawBinlogEventXid) binlogEventV4;
-        // prepare trans data
-        pipelineOrchestrator.commitTransaction(event);
+    public void handle(RawBinlogEvent rawBinlogEvent) throws TransactionException, TransactionSizeLimitException {
+        if (rawBinlogEvent instanceof  RawBinlogEventXid) {
+            final RawBinlogEventXid event = (RawBinlogEventXid) rawBinlogEvent;
+            // prepare trans data
+            pipelineOrchestrator.commitTransaction(event);
+        } else {
+            throw new TransactionException("Expected RawBinlogEventXid, but received " + rawBinlogEvent.getClass().toString());
+        }
     }
 }

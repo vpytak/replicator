@@ -121,6 +121,7 @@ public class BinlogEventProducer {
                             try {
                                 RawBinlogEvent rawBinlogEvent;
                                 switch (event.getHeader().getEventType()) {
+                                    // TODO: add xid
                                     case QUERY:
                                         rawBinlogEvent = new RawBinlogEventQuery(event);
                                         break;

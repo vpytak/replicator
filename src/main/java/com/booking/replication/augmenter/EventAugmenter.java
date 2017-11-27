@@ -74,7 +74,12 @@ public class EventAugmenter {
      * @param asv Active schema version
      */
     public EventAugmenter(ActiveSchemaVersion asv, boolean applyUuid, boolean applyXid) throws SQLException, URISyntaxException {
-        activeSchemaVersion = asv;
+
+        if (asv == null) {
+            throw new SQLException("Active Schema can't be null!");
+        }
+
+        this.activeSchemaVersion = asv;
         this.applyUuid = applyUuid;
         this.applyXid = applyXid;
     }

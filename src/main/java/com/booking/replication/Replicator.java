@@ -4,6 +4,7 @@ import com.booking.replication.applier.*;
 import com.booking.replication.binlog.event.RawBinlogEvent;
 import com.booking.replication.checkpoints.LastCommittedPositionCheckpoint;
 import com.booking.replication.monitor.*;
+import com.booking.replication.schema.MysqlActiveSchemaVersion;
 
 import com.booking.replication.pipeline.BinlogEventProducer;
 import com.booking.replication.pipeline.BinlogPositionInfo;
@@ -296,6 +297,7 @@ public class Replicator {
             rawBinlogEventQueue,
             pipelinePosition,
             configuration,
+            new MysqlActiveSchemaVersion(configuration),
             applier,
             replicantPool,
             binlogEventProducer,

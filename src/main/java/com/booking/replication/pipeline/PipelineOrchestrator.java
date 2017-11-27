@@ -111,11 +111,13 @@ public class PipelineOrchestrator extends Thread {
             LinkedBlockingQueue<RawBinlogEvent> rawBinlogEventQueue,
             PipelinePosition pipelinePosition,
             Configuration repcfg,
+            ActiveSchemaVersion asv,
             Applier applier,
             ReplicantPool replicantPool,
             BinlogEventProducer binlogEventProducer,
             long fakeMicrosecondCounter,
-            boolean metricsEnabled) throws SQLException, URISyntaxException {
+            boolean metricsEnabled
+    ) throws SQLException, URISyntaxException {
 
         this.rawBinlogEventQueue = rawBinlogEventQueue;
         configuration = repcfg;
@@ -124,6 +126,7 @@ public class PipelineOrchestrator extends Thread {
         this.replicantPool = replicantPool;
         this.fakeMicrosecondCounter = fakeMicrosecondCounter;
         this.binlogEventProducer = binlogEventProducer;
+        activeSchemaVersion = asv;
 
         eventAugmenter = new EventAugmenter(activeSchemaVersion, configuration.getAugmenterApplyUuid(), configuration.getAugmenterApplyXid());
 
@@ -148,11 +151,23 @@ public class PipelineOrchestrator extends Thread {
             LinkedBlockingQueue<RawBinlogEvent> rawBinlogEventQueue,
             PipelinePosition pipelinePosition,
             Configuration repcfg,
+            ActiveSchemaVersion asv,
             Applier applier,
             ReplicantPool replicantPool,
             BinlogEventProducer binlogEventProducer,
-            long fakeMicrosecondCounter) throws SQLException, URISyntaxException {
-        this(rawBinlogEventQueue, pipelinePosition, repcfg, applier, replicantPool, binlogEventProducer, fakeMicrosecondCounter, true);
+            long fakeMicrosecondCounter
+    ) throws SQLException, URISyntaxException {
+        this(
+            rawBinlogEventQueue,
+            pipelinePosition,
+            repcfg,
+            asv,
+            applier,
+            replicantPool,
+            binlogEventProducer,
+            fakeMicrosecondCounter,
+            true
+        );
     }
 
     private void registerMetrics() {
@@ -160,10 +175,6 @@ public class PipelineOrchestrator extends Thread {
                 (Gauge<Long>) () -> replDelay);
     }
 
-
-    public static void setActiveSchemaVersion(ActiveSchemaVersion activeSchemaVersion) {
-        PipelineOrchestrator.activeSchemaVersion = activeSchemaVersion;
-    }
 
     private void initEventDispatcher() {
         EventHandlerConfiguration eventHandlerConfiguration = new EventHandlerConfiguration(applier, eventAugmenter, this);
