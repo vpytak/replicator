@@ -121,7 +121,6 @@ public class BinlogEventProducer {
                             try {
                                 RawBinlogEvent rawBinlogEvent;
                                 switch (event.getHeader().getEventType()) {
-                                    // TODO: add xid
                                     case QUERY:
                                         rawBinlogEvent = new RawBinlogEventQuery(event);
                                         break;
@@ -146,8 +145,12 @@ public class BinlogEventProducer {
                                     case STOP:
                                         rawBinlogEvent = new RawBinlogEventStop(event);
                                         break;
+                                    case XID:
+                                        rawBinlogEvent = new RawBinlogEventXid(event);
+                                        break;
                                     default:
                                         rawBinlogEvent = new RawBinlogEvent(event);
+                                        LOGGER.warn("Unsupported event type: " + event.getHeader().getEventType());
                                         break;
                                 }
                                 // there is no binlog file name in the binlog connector event, so need to
