@@ -7,15 +7,9 @@ import com.booking.replication.binlog.event.*;
 import com.codahale.metrics.Counter;
 
 import com.booking.replication.Metrics;
-//<<<<<<< HEAD
+
 import com.booking.replication.pipeline.CurrentTransaction;
-//=======
-//import com.booking.replication.binlog.common.Cell;
-//import com.booking.replication.binlog.common.Row;
-//import com.booking.replication.binlog.common.RowPair;
-//import com.booking.replication.binlog.event.*;
-//import com.booking.replication.pipeline.PipelineOrchestrator;
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
+
 import com.booking.replication.schema.ActiveSchemaVersion;
 import com.booking.replication.schema.column.ColumnSchema;
 import com.booking.replication.schema.column.types.Converter;
@@ -23,21 +17,8 @@ import com.booking.replication.schema.exception.SchemaTransitionException;
 import com.booking.replication.schema.exception.TableMapException;
 import com.booking.replication.schema.table.TableSchemaVersion;
 
-//<<<<<<< HEAD
 import com.booking.replication.util.CaseInsensitiveMap;
-import com.google.code.or.binlog.BinlogEventV4;
-import com.google.code.or.binlog.StatusVariable;
-import com.google.code.or.binlog.impl.event.*;
-import com.google.code.or.binlog.impl.variable.status.QTimeZoneCode;
-import com.google.code.or.common.glossary.Column;
-import com.google.code.or.common.glossary.Pair;
-import com.google.code.or.common.glossary.Row;
-import com.google.code.or.common.util.MySQLConstants;
 
-import com.codahale.metrics.Counter;
-//=======
-//import org.jruby.RubyProcess;
-//>>>>>>> Migrating to binlog connector. Temporarily will support both parsers.
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

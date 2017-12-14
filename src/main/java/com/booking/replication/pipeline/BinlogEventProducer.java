@@ -5,10 +5,7 @@ import static com.codahale.metrics.MetricRegistry.name;
 import com.booking.replication.Configuration;
 import com.booking.replication.Constants;
 import com.booking.replication.Metrics;
-import com.booking.replication.binlog.EventPosition;
-import com.codahale.metrics.MetricRegistry;
 
-import com.booking.replication.binlog.common.Row;
 import com.booking.replication.binlog.event.*;
 import com.booking.replication.replicant.ReplicantPool;
 
@@ -23,7 +20,7 @@ import com.google.code.or.binlog.BinlogEventListener;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
 import com.google.code.or.common.util.MySQLConstants;
-import org.jruby.RubyProcess;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

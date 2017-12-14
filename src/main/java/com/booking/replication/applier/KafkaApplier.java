@@ -331,7 +331,7 @@ public class KafkaApplier implements Applier {
                         // Update row position cache:
                         //
                         // now we need to get the last row id that was in that last message and update last
-                        // row position cache (that is needed to compare with rows arrving from producer)
+                        // row position cache (that is needed to compare with rows arriving from producer)
                         // in order to avoid duplicate rows being pushed to kafka
                         String lastMessageJSON = lastMessage.value();
                         RowListMessage lastMessageDecoded = RowListMessage.fromJSON(lastMessageJSON);
