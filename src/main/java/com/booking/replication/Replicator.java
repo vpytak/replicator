@@ -45,7 +45,6 @@ import java.util.concurrent.TimeUnit;
  */
 public class Replicator {
 
-    private final int                                 binlogParserProviderCode;
     private final LinkedBlockingQueue<RawBinlogEvent> rawBinlogEventQueue;
     private final BinlogEventProducer                 binlogEventProducer;
     private final PipelineOrchestrator                pipelineOrchestrator;
@@ -70,9 +69,6 @@ public class Replicator {
 
         this.healthTracker = healthTracker;
         long fakeMicrosecondCounter = 0;
-
-        // TODO: add parserProviderCode to config
-        this.binlogParserProviderCode = binlogParserProviderCode;
 
         boolean mysqlFailoverActive = false;
         if (configuration.getMySQLFailover() != null) {

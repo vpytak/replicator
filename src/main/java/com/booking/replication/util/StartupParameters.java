@@ -2,8 +2,9 @@ package com.booking.replication.util;
 
 import com.booking.replication.binlog.event.BinlogEventParserProviderCode;
 import joptsimple.OptionSet;
-import org.apache.commons.lang.StringUtils;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 
 /**
  * Created by bdevetak on 01/12/15.
@@ -25,7 +26,7 @@ public class StartupParameters {
 
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(StartupParameters.class);
 
-    public StartupParameters(OptionSet optionSet) throws Exception {
+    public StartupParameters(OptionSet optionSet) throws IOException {
 
         // use delta tables
         deltaTables = optionSet.has("delta");
@@ -45,7 +46,7 @@ public class StartupParameters {
             else if (parserName.equals("bc")) {
                 parser = BinlogEventParserProviderCode.SHYIKO;
             } else {
-                throw  new Exception("Unsupported binlog parser " + parserName);
+                throw  new IOException("Unsupported binlog parser " + parserName);
             }
         } else {
             parser = BinlogEventParserProviderCode.SHYIKO;
