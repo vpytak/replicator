@@ -34,9 +34,14 @@ import java.util.concurrent.TimeUnit;
  * Booking replicator. Has two main objects (producer and consumer)
  * that reference the same thread-safe queue.
  * Producer pushes binlog events to the queue and consumer
- * reads them. Producer is basically a wrapper for open replicator,
- * and consumer is wrapper for all booking specific logic (schema
- * version control, augmenting events and storing events).
+ * reads them.
+ * Producer is basically a wrapper for open replicator
+ * and/or binlog connector.
+ * Consumer is entry point for the event processing pipeline,
+ * which includes:
+ *      - schema version control,
+ *      - augmenting events with schema information
+ *      - storing events at designated destination (Kafka, HBase)
  */
 public class Replicator {
 
