@@ -1,5 +1,6 @@
 package com.booking.replication.util;
 
+import com.booking.replication.binlog.event.BinlogEventParserProviderCode;
 import joptsimple.OptionSet;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.LoggerFactory;
@@ -19,10 +20,12 @@ public class StartupParameters {
     private boolean initialSnapshot;
     private String  hbaseNamespace;
     private boolean dryrun;
+    private int     parser;
+    private String  parserName;
 
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(StartupParameters.class);
 
-    public StartupParameters(OptionSet optionSet) {
+    public StartupParameters(OptionSet optionSet) throws Exception {
 
         // use delta tables
         deltaTables = optionSet.has("delta");
@@ -32,6 +35,21 @@ public class StartupParameters {
 
         // initial snapshot mode
         initialSnapshot  = optionSet.has("initial-snapshot");
+
+        // schema
+        if (optionSet.hasArgument("parser")) {
+            parserName = optionSet.valueOf("parser").toString();
+            if (parserName.equals("or")) {
+                parser = BinlogEventParserProviderCode.OR;
+            }
+            else if (parserName.equals("bc")) {
+                parser = BinlogEventParserProviderCode.SHYIKO;
+            } else {
+                throw  new Exception("Unsupported binlog parser " + parserName);
+            }
+        } else {
+            parser = BinlogEventParserProviderCode.SHYIKO;
+        }
 
         // schema
         if (optionSet.hasArgument("schema")) {
@@ -68,6 +86,7 @@ public class StartupParameters {
         System.out.println("\tlast-binlog-filename:  " + lastBinlogFileName);
         System.out.println("\tinitial-snapshot:      " + initialSnapshot);
         System.out.println("\thbase-namespace:       " + hbaseNamespace);
+        System.out.println("\tparser:                " + parserName);
         System.out.println("\tdry-run:               " + dryrun);
         System.out.println("----------------------------------------------\n");
 
@@ -111,5 +130,13 @@ public class StartupParameters {
 
     public String getHbaseNamespace() {
         return hbaseNamespace;
+    }
+
+    public int getParser() {
+        return parser;
+    }
+
+    public String getParserName() {
+        return parserName;
     }
 }

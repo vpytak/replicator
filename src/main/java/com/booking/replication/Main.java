@@ -25,8 +25,7 @@ import static spark.Spark.*;
 
 public class Main {
 
-    // TODO: add this as cmd option
-    private static final int BINLOG_PARSER_PROVIDER_CODE = BinlogEventParserProviderCode.SHYIKO;
+    private static int BINLOG_PARSER_PROVIDER_CODE;
 
     /**
      * Main.
@@ -35,6 +34,8 @@ public class Main {
         OptionSet optionSet = Cmd.parseArgs(args);
 
         StartupParameters startupParameters = new StartupParameters(optionSet);
+
+        BINLOG_PARSER_PROVIDER_CODE = startupParameters.getParser();
 
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         String  configPath = startupParameters.getConfigPath();
