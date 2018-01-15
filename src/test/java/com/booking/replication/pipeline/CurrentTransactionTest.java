@@ -125,4 +125,49 @@ public class CurrentTransactionTest {
         assertTrue(currentTransaction.hasMappingInTransaction());
     }
 
+    @Test
+    public void organizeTimestamps() throws Exception {
+        CurrentTransaction currentTransaction = new CurrentTransaction();
+        for (int i = 0; i < 5; i++) {
+            QueryEvent queryEvent = new QueryEvent(new BinlogEventV4HeaderImpl());
+            ((BinlogEventV4HeaderImpl) queryEvent.getHeader()).setTimestamp(500 - i);
+            currentTransaction.addEvent(queryEvent);
+        }
+        int counter = 0;
+        for (BinlogEventV4 event: currentTransaction.getEvents()) {
+            assertEquals(500 - counter, event.getHeader().getTimestamp());
+            counter++;
+        }
+        currentTransaction.organizeTimestamps();
+        counter = 0;
+        for (BinlogEventV4 event: currentTransaction.getEvents()) {
+            assertEquals(496 + counter, event.getHeader().getTimestamp());
+            counter++;
+        }
+    }
+
+    @Test
+    public void organizeTimestampsLotsOfEvents() throws Exception {
+        CurrentTransaction currentTransaction = new CurrentTransaction();
+        for (int i = 0; i < 5000; i++) {
+            QueryEvent queryEvent = new QueryEvent(new BinlogEventV4HeaderImpl());
+            ((BinlogEventV4HeaderImpl) queryEvent.getHeader()).setTimestamp(10000 - i);
+            currentTransaction.addEvent(queryEvent);
+        }
+        int counter = 0;
+        for (BinlogEventV4 event: currentTransaction.getEvents()) {
+            assertEquals(10000 - counter, event.getHeader().getTimestamp());
+            counter++;
+        }
+        currentTransaction.organizeTimestamps();
+        counter = 0;
+        for (BinlogEventV4 event: currentTransaction.getEvents()) {
+            if (counter < 1000) {
+                assertEquals(9001 + counter, event.getHeader().getTimestamp());
+            } else {
+                assertEquals(10000, event.getHeader().getTimestamp());
+            }
+            counter++;
+        }
+    }
 }

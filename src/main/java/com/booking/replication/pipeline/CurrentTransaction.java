@@ -31,6 +31,7 @@ public class CurrentTransaction {
     private final Map<Long, String> tableID2DBName = new HashMap<>();
     private QueryEvent beginEvent = null;
     private BinlogEventV4 finishEvent = null;
+    private long finishTimestamp;
     private boolean isRewinded = false;
 
     private TableMapEvent firstMapEventInTransaction = null;
@@ -85,6 +86,7 @@ public class CurrentTransaction {
         // xa-capable engines block (InnoDB)
         if (this.finishEvent == null) {
             setXid(finishEvent.getXid());
+            this.finishTimestamp = finishEvent.getHeader().getTimestamp();
             this.finishEvent = finishEvent;
             return;
         }
@@ -105,6 +107,7 @@ public class CurrentTransaction {
         if (this.finishEvent == null) {
             setXid(FAKEXID);
             this.finishEvent = finishEvent;
+            this.finishTimestamp = finishEvent.getHeader().getTimestamp();
             return;
         }
         if (isRewinded) {
@@ -132,6 +135,8 @@ public class CurrentTransaction {
     boolean hasFinishEvent() {
         return (finishEvent != null);
     }
+
+    void setFinishTimestamp(long timestamp) { this.finishTimestamp = timestamp; }
 
     void addEvent(BinlogEventV4 event) {
         events.add(event);
@@ -177,6 +182,42 @@ public class CurrentTransaction {
         setEventsTimestamp(finishEvent.getHeader().getTimestamp());
     }
 
+    void organizeTimestamps() {
+        //Set timestamps of events sequentially between smallest and largest limiting to 1 millisecond
+        long maxTimestamp = finishTimestamp;
+
+        long eventsCount = 0;
+        if (hasBeginEvent()) {
+            maxTimestamp = Math.max(maxTimestamp, beginEvent.getHeader().getTimestamp());
+            eventsCount++;
+        }
+        if (hasFinishEvent()) {
+            maxTimestamp = Math.max(maxTimestamp, finishEvent.getHeader().getTimestamp());
+            eventsCount++;
+        }
+        for (BinlogEventV4 event : events) {
+            maxTimestamp = Math.max(maxTimestamp, event.getHeader().getTimestamp());
+        }
+        eventsCount += events.size();
+        //We want all timestamps to be inside of one millisecond
+        long currentTimestamp = maxTimestamp - Math.min(eventsCount, 1000) + 1;
+        currentTimestamp = Math.max(0, currentTimestamp);
+
+        if (hasBeginEvent()) {
+            ((BinlogEventV4HeaderImpl) beginEvent.getHeader()).setTimestamp(Math.min(maxTimestamp, currentTimestamp));
+            currentTimestamp++;
+        }
+        for (BinlogEventV4 event : events) {
+            ((BinlogEventV4HeaderImpl) event.getHeader()).setTimestamp(Math.min(maxTimestamp, currentTimestamp));
+            currentTimestamp++;
+        }
+        if (hasFinishEvent()) {
+            ((BinlogEventV4HeaderImpl) finishEvent.getHeader()).setTimestamp(Math.min(maxTimestamp, currentTimestamp));
+            currentTimestamp++;
+        }
+
+
+    }
     /**
      * Update table map cache.
      * @param event event

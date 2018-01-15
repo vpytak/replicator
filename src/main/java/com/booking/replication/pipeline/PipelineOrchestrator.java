@@ -665,8 +665,7 @@ public class PipelineOrchestrator extends Thread {
     public void commitTransaction(long timestamp, long xid) throws TransactionException {
         // manual transaction commit
         currentTransaction.setXid(xid);
-        if (currentTransaction.hasBeginEvent()) currentTransaction.setBeginEventTimestamp(timestamp);
-        currentTransaction.setEventsTimestamp(timestamp);
+        currentTransaction.setFinishTimestamp(timestamp);
         commitTransaction();
     }
 
@@ -694,6 +693,9 @@ public class PipelineOrchestrator extends Thread {
                     dropTransaction();
                     return;
                 }
+                if (!configuration.isInitialSnapshotMode()) {
+                    currentTransaction.organizeTimestamps();
+                }
                 applyTransactionBeginEvent();
                 applyTransactionDataEvents();
                 applyTransactionFinishEvent();
@@ -716,7 +718,6 @@ public class PipelineOrchestrator extends Thread {
 
     private void applyTransactionDataEvents() throws EventHandlerApplyException, TransactionException {
         // apply data-changing events
-        if (currentTransaction.hasFinishEvent())    currentTransaction.setEventsTimestampToFinishEvent();
         for (BinlogEventV4 event : currentTransaction.getEvents()) {
             eventDispatcher.apply(event, currentTransaction);
         }
